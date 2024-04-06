@@ -1,5 +1,9 @@
 # Ignore CLion-related files
 .idea/
+*.iml
+
+# Ignore any executable file
+*
 
 # Ignore CLion workspace file
 *.iws
