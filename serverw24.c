@@ -20,17 +20,16 @@ void crequest(int conn) {
         // Receive message from client
         if (recv(conn, message, sizeof(message), 0) > 0) {
             printf("Client: %s\n", message);
-            memset(message, 0, sizeof(message)); // Clear message buffer
+            // Check for exit condition
+            if (strncmp(message, "quitc", 5) == 0) {
+                printf("Exiting crequest()...\n");
+                break;
+            }
         }
 
         // Perform actions based on client command
         serve_user_request(conn);
 
-        // Check for exit condition
-        if (strncmp(message, "quitc", 5) == 0) {
-            printf("Exiting crequest()...\n");
-            break;
-        }
     }
     close(conn); // Close the connection socket
 }
@@ -57,7 +56,7 @@ int main() {
     }
 
     // Listen for connections
-    if (listen(fd, 5) == -1) {
+    if (listen(fd, 15) == -1) {
         perror("Listen failed");
         exit(EXIT_FAILURE);
     }

@@ -37,6 +37,10 @@ int main() {
         printf("Enter your message: ");
         fgets(message, sizeof(message), stdin);
         send(fd, message, strlen(message), 0);
+        if (strncmp(message, "quitc", 5) == 0) {
+            printf("Exiting client...\n");
+            exit(0);
+        }
         memset(message, 0, sizeof(message)); // Clear message buffer
 
         // Receive message from server
