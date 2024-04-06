@@ -1,0 +1,17 @@
+# Ignore CLion-related files
+.idea/
+
+# Ignore CLion workspace file
+*.iws
+
+# Ignore CLion CMake files
+CMakeLists.txt.user
+
+# Ignore CLion configuration files
+.idea/*.xml
+
+# Ignore CLion workspace file
+.idea/workspace.xml
+
+# Accept .c files
+!*.c
