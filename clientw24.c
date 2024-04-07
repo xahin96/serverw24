@@ -5,8 +5,58 @@
 #include <arpa/inet.h> // For inet_pton
 #include <string.h> // For strlen
 #include <unistd.h>
+#include <ifaddrs.h>
+
+
+#ifdef __APPLE__
+#define INTERFACE_NAME "en0" // Interface name for macOS
+#elif __linux__
+#define WLAN_INTERFACE_PREFIX "wlan" // Interface name prefix for Linux Wi-Fi
+#define ETH_INTERFACE_PREFIX "eth"   // Interface name prefix for Linux Ethernet
+#else
+#error "Unsupported OS"
+#endif
+
+char *getIPAddress() {
+    struct ifaddrs *ifap, *ifa;
+    struct sockaddr_in *sa;
+    char *ipAddress = NULL;
+
+    if (getifaddrs(&ifap) == -1) {
+        perror("getifaddrs");
+        exit(EXIT_FAILURE);
+    }
+
+#ifdef __APPLE__
+    for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+            sa = (struct sockaddr_in *) ifa->ifa_addr;
+            if (strcmp(ifa->ifa_name, INTERFACE_NAME) == 0) {
+                ipAddress = strdup(inet_ntoa(sa->sin_addr));
+                break;
+            }
+        }
+    }
+#elif __linux__
+    for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+            sa = (struct sockaddr_in *) ifa->ifa_addr;
+            if (strstr(ifa->ifa_name, WLAN_INTERFACE_PREFIX) != NULL || strstr(ifa->ifa_name, ETH_INTERFACE_PREFIX) != NULL) {
+                ipAddress = strdup(inet_ntoa(sa->sin_addr));
+                break;
+            }
+        }
+    }
+#endif
+
+    freeifaddrs(ifap);
+    return ipAddress;
+}
+
 
 int main() {
+    char *ipAddress = getIPAddress();
+
     struct sockaddr_in serv;
     int fd;
     char message[100] = "";
@@ -19,11 +69,12 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(8096);
-    if (inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr) <= 0) {
+    serv.sin_port = htons(9050);
+    if (inet_pton(AF_INET, ipAddress, &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
     }
+    free(ipAddress);
 
     // Connect to the server
     if (connect(fd, (struct sockaddr *)&serv, sizeof(serv)) == -1) {
