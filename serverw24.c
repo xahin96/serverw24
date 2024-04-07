@@ -67,6 +67,7 @@ void serve_user_request(int fd) {
 // Function to handle client requests
 void crequest(int conn) {
     char message[100] = "";
+    send(conn, "Server will handle the request", strlen("Server will handle the request"), 0);
 
     while (1) {
         // Receive message from client
@@ -145,8 +146,10 @@ int main() {
             run_child_process(fd, conn);
         } else if (total_client < 6) {
             printf("Client handled by mirror1\n");
+            send(conn, "CONNECT_TO_PORT:9051", strlen("CONNECT_TO_PORT:9051"), 0);
         } else if (total_client < 9) {
             printf("Client handled by mirror2\n");
+            send(conn, "CONNECT_TO_PORT:9052", strlen("CONNECT_TO_PORT:9052"), 0);
         } else {
             // Cycle through server, mirror1, and mirror2
             if (server_index == 0) {
@@ -154,8 +157,10 @@ int main() {
                 run_child_process(fd, conn);
             } else if (server_index == 1) {
                 printf("Client handled by mirror1\n");
+                send(conn, "CONNECT_TO_PORT:9051", strlen("CONNECT_TO_PORT:9051"), 0);
             } else {
                 printf("Client handled by mirror2\n");
+                send(conn, "CONNECT_TO_PORT:9052", strlen("CONNECT_TO_PORT:9052"), 0);
             }
             server_index = (server_index + 1) % 3;
         }
