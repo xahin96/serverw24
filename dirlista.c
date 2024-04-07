@@ -44,7 +44,7 @@ char** getSubdirectories_alpha(int *count) {
     return subdirs;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     int count;
     char **subdirs = getSubdirectories_alpha(&count);
     if (subdirs == NULL) {
