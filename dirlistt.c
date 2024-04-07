@@ -14,7 +14,7 @@ char** getSubdirectories_time(int *count) {
     // sorts them in a case-insensitive manner
     fp = popen("ls -1 -d -tr --time=birth $HOME/*/ | xargs -n 1 basename", "r");
     if (fp == NULL) {
-        fprintf(stderr, "Failed to run command\n");
+        fprintf(stderr, "Failed to run command!\n");
         return NULL;
     }
 

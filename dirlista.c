@@ -36,7 +36,7 @@ char** getSubdirectories_alpha(int *count) {
     // Close the pipe and get the return code
     int ret = pclose(fp);
     if (ret == -1) {
-        fprintf(stderr, "Error while closing pipe\n");
+        fprintf(stderr, "Error while closing pipe !!!\n");
         return NULL;
     }
 
