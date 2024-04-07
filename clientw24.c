@@ -85,7 +85,6 @@ int main() {
     while (1) {
         // Receive message from server
         if (recv(fd, message, sizeof(message), 0) > 0) {
-            printf("Message received from server: %s\n", message);
             // Check if the server instructs to connect to a different port
             if (strncmp(message, "CONNECT_TO_PORT:", 16) == 0) {
                 int port = atoi(message + 16); // Extract port number from the message
@@ -114,7 +113,7 @@ int main() {
         send(fd, message, strlen(message), 0);
         if (strncmp(message, "quitc", 5) == 0) {
             printf("Exiting client...\n");
-            exit(0);
+            break;
         }
         memset(message, 0, sizeof(message)); // Clear message buffer
     }
