@@ -5,6 +5,7 @@
 #include <unistd.h> // For fork
 #include <string.h> // For memset
 
+#define PORT_MIRROR1 9051
 
 void handle_dirlist_all(int conn) {
     char message[200];
@@ -19,7 +20,6 @@ void handle_dirlist_all(int conn) {
     // Send termination message after sending all messages
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 }
-
 
 // Function to handle client requests
 void crequest(int conn) {
@@ -44,14 +44,13 @@ void crequest(int conn) {
     close(conn); // Close the connection socket
 }
 
-
 int main() {
     struct sockaddr_in serv;
     int fd, conn;
 
     // Initialize socket structure
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9051);
+    serv.sin_port = htons(PORT_MIRROR1);
     serv.sin_addr.s_addr = INADDR_ANY;
 
     // Create socket
