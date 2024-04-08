@@ -8,52 +8,6 @@
 #include <ifaddrs.h>
 
 
-#ifdef __APPLE__
-#define INTERFACE_NAME "en0" // Interface name for macOS
-#elif __linux__
-#define WLAN_INTERFACE_PREFIX "wlan" // Interface name prefix for Linux Wi-Fi
-#define ETH_INTERFACE_PREFIX "eth"   // Interface name prefix for Linux Ethernet
-#else
-#error "Unsupported OS"
-#endif
-
-char *getIPAddress() {
-    struct ifaddrs *ifap, *ifa;
-    struct sockaddr_in *sa;
-    char *ipAddress = NULL;
-
-    if (getifaddrs(&ifap) == -1) {
-        perror("getifaddrs");
-        exit(EXIT_FAILURE);
-    }
-
-#ifdef __APPLE__
-    for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-            sa = (struct sockaddr_in *) ifa->ifa_addr;
-            if (strcmp(ifa->ifa_name, INTERFACE_NAME) == 0) {
-                ipAddress = strdup(inet_ntoa(sa->sin_addr));
-                break;
-            }
-        }
-    }
-#elif __linux__
-    for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-            sa = (struct sockaddr_in *) ifa->ifa_addr;
-            if (strstr(ifa->ifa_name, WLAN_INTERFACE_PREFIX) != NULL || strstr(ifa->ifa_name, ETH_INTERFACE_PREFIX) != NULL) {
-                ipAddress = strdup(inet_ntoa(sa->sin_addr));
-                break;
-            }
-        }
-    }
-#endif
-
-    freeifaddrs(ifap);
-    return ipAddress;
-}
-
-
 int total_client = 0;
 int server_index = 0;
 
@@ -106,8 +60,6 @@ void run_child_process(int fd, int conn){
 
 
 int main() {
-    char *ipAddress = getIPAddress();
-
     struct sockaddr_in serverw24;
     int fd, conn;
 
@@ -115,9 +67,6 @@ int main() {
     serverw24.sin_family = AF_INET;
     serverw24.sin_port = htons(9050);
     serverw24.sin_addr.s_addr = INADDR_ANY;
-
-
-    free(ipAddress);
 
     // Create socket
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
