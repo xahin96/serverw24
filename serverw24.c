@@ -12,9 +12,18 @@ int total_client = 0;
 int server_index = 0;
 
 
-void serve_user_request(int fd) {
-    char * message = "Received by serverw24";
-    send(fd, message, strlen(message), 0);
+void handle_dirlist_all(int conn) {
+    char message[200];
+    int num_messages = 0;
+    while (num_messages < 5) {
+        sleep(1);
+        sprintf(message, "message - %d\n", num_messages); // Create the message
+        send(conn, message, strlen(message), 0);
+        num_messages++;
+    }
+    memset(message, 0, sizeof(message)); // Clear message buffer
+    // Send termination message after sending all messages
+    send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 }
 
 
@@ -26,17 +35,17 @@ void crequest(int conn) {
     while (1) {
         // Receive message from client
         if (recv(conn, message, sizeof(message), 0) > 0) {
-            printf("Client message from server: %s\n", message);
+            printf("Client message from mirror1: %s\n", message);
+
+            if (strstr(message, "dirlist -a") != NULL) {
+                handle_dirlist_all(conn);
+            }
+
             // Check for exit condition
             if (strncmp(message, "quitc", 5) == 0) {
-                printf("Exiting crequest()...\n");
                 break;
             }
         }
-
-        // Perform actions based on client command
-        serve_user_request(conn);
-
     }
     close(conn); // Close the connection socket
 }
