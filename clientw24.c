@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 
-
 #ifdef __APPLE__
 #define INTERFACE_NAME "en0" // Interface name for macOS
 #elif __linux__
@@ -53,6 +52,27 @@ char *getIPAddress() {
     return ipAddress;
 }
 
+void handle_dirlist_all(int fd) {
+    char message[100] = "";
+    int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
+    while (!end_of_messages_received) {
+        // Receive message from server
+        memset(message, 0, sizeof(message)); // Clear message buffer
+        int bytes_received = recv(fd, message, sizeof(message), 0);
+        if (bytes_received > 0) {
+            printf("%s\n", message);
+            if (strstr(message, "END_OF_MESSAGES") != NULL) {
+                end_of_messages_received = 1; // Set flag to true
+            }
+        } else if (bytes_received == 0) {
+            break; // Terminate loop when connection closed
+        } else {
+            // Handle the case where recv returns -1 (indicating error)
+            perror("recv");
+            break;
+        }
+    }
+}
 
 int main() {
     char *ipAddress = getIPAddress();
@@ -68,22 +88,17 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9050); // Always connect to port 9050 initially
+    serv.sin_port = htons(9050);
     if (inet_pton(AF_INET, ipAddress, &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
     }
-    free(ipAddress);
 
     // Connect to the server
     if (connect(fd, (struct sockaddr *)&serv, sizeof(serv)) == -1) {
         perror("Connection failed");
         exit(EXIT_FAILURE);
-    }
-
-    // Send and receive messages to/from the server
-    while (1) {
-        // Receive message from server
+    } else {
         if (recv(fd, message, sizeof(message), 0) > 0) {
             // Check if the server instructs to connect to a different port
             if (strncmp(message, "CONNECT_TO_PORT:", 16) == 0) {
@@ -106,16 +121,20 @@ int main() {
             }
             memset(message, 0, sizeof(message)); // Clear message buffer
         }
+    }
 
+    while (1) {
         // Send message to server
-        printf("Enter your message: ");
+        printf("clientw24$ ");
         fgets(message, sizeof(message), stdin);
-        send(fd, message, strlen(message), 0);
-        if (strncmp(message, "quitc", 5) == 0) {
-            printf("Exiting client...\n");
+        if (strstr(message, "dirlist -a") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_dirlist_all(fd);
+        } else if (strncmp(message, "quitc", 5) == 0) {
             break;
+        } else {
+            send(fd, message, strlen(message), 0);
         }
-        memset(message, 0, sizeof(message)); // Clear message buffer
     }
 
     // Close the socket

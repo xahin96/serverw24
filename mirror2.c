@@ -5,7 +5,7 @@
 #include <unistd.h> // For fork
 #include <string.h> // For memset
 
-#define PORT_MIRROR1 9051
+#define PORT_MIRROR2 9052
 
 void handle_dirlist_all(int conn) {
     char message[200];
@@ -50,7 +50,7 @@ int main() {
 
     // Initialize socket structure
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(PORT_MIRROR1);
+    serv.sin_port = htons(PORT_MIRROR2);
     serv.sin_addr.s_addr = INADDR_ANY;
 
     // Create socket
