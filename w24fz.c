@@ -26,12 +26,8 @@ int combineFileName ( const char *filepath, const char *filename ) {
     // Extract the directory path of the current filepath
     char *file_dir = dirname (filepath);
 
-    // Make the directory path quoted by double quotation marks
-    // Store it in the 'quoted_path' variable
-    sprintf(quoted_path, "\"%s\"", file_dir);
-
     // This format is to archive all the files without their directory structure
-    sprintf(allFileNames, "%s -C %s %s", allFileNames, quoted_path, filename);
+    sprintf(allFileNames, "%s -C \"%s\" \"%s\"", allFileNames, file_dir, filename);
 
     // Return 1 to indicate successful completion
     return 1;
@@ -44,7 +40,7 @@ int checkSize ( const char *filepath,
 
     // Check if the size of a file is as request
     if (typeflag == FTW_F && sb->st_size >= size1 && sb->st_size <= size2 ) {
-        printf("%s\n", filepath + ftwbuf->base);
+        // printf("%s\n", filepath + ftwbuf->base);
 
         // Check if the file is existing in allFileNames
         // If not, add its path and name into the allFileName
@@ -71,11 +67,14 @@ int main ( int argc, char *argv[] ) {
     // size1 >= 0 and size2 >= 0
     size1 = atoi(argv[1]);
     size2 = atoi(argv[2]);
-    printf("size1 = %d, \nsize2 = %d\n", size1, size2);
+    // printf("size1 = %d, \nsize2 = %d\n", size1, size2);
 
     // char *home_dir = getenv("HOME");
     // Change the home directory later
     char *home_dir = "/Users/nanasmacbookprowithtouchbar/folder1";
+
+    // initialize the string
+    *allFileNames = NULL;
 
     // Traverse the home directory
     int searchResult = nftw(home_dir, checkSize, 20, FTW_PHYS);
@@ -85,7 +84,7 @@ int main ( int argc, char *argv[] ) {
 
         // All files were found successfully
         if ( errorFLAG == 0 ) {
-            printf("Search successful! All your requested files are showed above!\n\n");
+            // printf("Search successful! All your requested files are showed above!\n\n");
 
             // Create the path of the TAR archive named temp.tar.gz in home directory
             char tar_filepath[PATH_MAX];

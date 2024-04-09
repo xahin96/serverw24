@@ -12,9 +12,9 @@
 #include <time.h>
 
 char *filename;  // store the name of the input file
-char size_message[13];
-char date_message[50];
-char permission_message[26];
+char size_message[25];  // store the information of file size
+char date_message[50];  // store the information of creation date
+char permission_message[26];    // store the information of permissions
 
 // nftw() callback function to look for the first occurrence of the input file
 int checkFirst ( const char *filepath,
@@ -51,7 +51,7 @@ int checkFirst ( const char *filepath,
 
 int main(int argc, char *argv[]) {
 
-    filename = "test1.txt";
+    filename = argv[1];
 
     const char *home_dir = getenv("HOME");
 
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     // nftw() returns 1 if the callback function checkFirst() returns 1
     // Which means the file has been found
     if ( searchResult > 0 ){
-        printf("File: %s\n", filename);
+        printf("\nFile: %s\n\n", filename);
         printf("%s\n", size_message);
         printf("%s", date_message);
         printf("%s\n", permission_message);

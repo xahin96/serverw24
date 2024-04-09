@@ -12,22 +12,10 @@
 #include <time.h>
 #include <sys/wait.h>
 
-char *extensions[3];
-int num_ext;
+char *start_date;
 int errorFLAG = -1;             // this flag is for printing appropriate error messages when searching for files as request
 char allFileNames[100000];      // store all the file paths and names for tar command
 
-// Compare each extension with a filename
-// Return 1, if one of the extensions matched
-// Return 0, if no extension matched
-int compare_extension (char *filename, char *extensions[]) {
-    for (int i = 0; i < num_ext; i++) {
-        if (strstr(filename, extensions[i]) != NULL) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 // Create a formatted string that represents the file paths and names for archiving
 // The shell command format for filepath: -C "filepath1" filename1.extension -C "filepath2" filename2.extension
@@ -45,19 +33,22 @@ int combineFileName ( const char *filepath, const char *filename ) {
     return 1;
 }
 
-int checkExt ( const char *filepath,
+int checkDate ( const char *filepath,
                   const struct stat *sb,
                   int typeflag,
                   struct FTW *ftwbuf) {
 
-    // Check if the size of a file is as request
-    if (typeflag == FTW_F && compare_extension(filepath, extensions) == 1 ) {
-        // printf("%s\n", filepath + ftwbuf->base);
+    char ctime[10];
+    strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&sb->st_ctime));
+
+    // Check if the creation date of a file is as request
+    if (typeflag == FTW_F && strcmp(ctime, start_date) >= 0 ) {
+        
+        printf("%s: %s\n", filepath + ftwbuf->base, ctime);
 
         // Check if the file is existing in allFileNames
         // If not, add its path and name into the allFileName
         if ( strstr(allFileNames, filepath) == NULL ) {
-            printf("");
             int a = combineFileName (filepath, filepath + ftwbuf->base );
         }
 
@@ -73,28 +64,18 @@ int checkExt ( const char *filepath,
         return 0;
 }
 
-// Create a TAR file that contains all the files founded in home directory, whose extension is one of the arguments
+// Create a TAR file that contains all the files founded in home directory, which is created after an start_date
 int main ( int argc, char *argv[] ) {
 
-    // Number of extension
-    num_ext = argc - 1;
-
-    for ( int i = 0; i < num_ext; i++ ) {
-        // Allocate memory to each pointer
-        extensions[i] = malloc(sizeof(char *));
-        // extension is "." + argument
-        sprintf(extensions[i], ".%s", argv[i+1]);
-    }
+    start_date = argv[1];
+    // printf("date = %s\n", end_date);
 
     // char *home_dir = getenv("HOME");
     // Change the home directory later
     char *home_dir = "/Users/nanasmacbookprowithtouchbar/folder1";
 
-    // Initialize the string
-    *allFileNames = NULL;
-
     // Traverse the home directory
-    int searchResult = nftw(home_dir, checkExt, 20, FTW_PHYS);
+    int searchResult = nftw(home_dir, checkDate, 20, FTW_PHYS);
 
     // Search successful with no errors during traversal
     if ( searchResult == 0 ){
@@ -135,6 +116,5 @@ int main ( int argc, char *argv[] ) {
     else if (searchResult == -1)
         printf("\nError Searching\n\n");
 
-    // free(extensions);
     return 1;
 }
