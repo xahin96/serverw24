@@ -55,22 +55,93 @@ char** getSubdirectories_alpha(int *count) {
     return subdirs;
 }
 
+// handle "dirlist -a" command received from client
 int handle_dirlist_alpha(int conn) {
-    int num_messages;
-    char **subdirs = getSubdirectories_alpha(&num_messages);
+    int num_subdir;
+    char **subdirs = getSubdirectories_alpha(&num_subdir);
     if (subdirs == NULL) {
         fprintf(stderr, "Error: Failed to get subdirectories.\n");
         return EXIT_FAILURE;
     }
 
     char message[200];
-    sprintf(message, "There are %d subdirectories:\n", num_messages);
+    sprintf(message, "There are %d subdirectories:\n", num_subdir);
     send(conn, message, strlen(message), 0);
-    // printf("There are totally %d subdirectories in %s:\n", num_messages, getenv("HOME"));
-    for (int i = 0; i < num_messages; i++) {
+
+    for (int i = 0; i < num_subdir; i++) {
         sleep(1);
         send(conn, subdirs[i], strlen(subdirs[i]), 0);
-        // printf("%s\n", subdirs[i]);
+
+        // Clear message buffer
+        memset(subdirs[i], 0, sizeof(subdirs[i]));
+        free(subdirs[i]);
+    }
+    
+    // Send termination message after sending all messages
+    send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
+
+    free(subdirs);
+    return EXIT_SUCCESS;
+}
+
+// Get all the subdirectories in home directory in order of creation time
+char** getSubdirectories_time(int *count) {
+    FILE *fp;   // file pointer
+    char dir_name[1035];    // name of a directory
+    char **subdirs = NULL;  // array of pointers referring to all the subdirectories
+    int subdir_count = 0;   // number of subdirectories, initialized as 0
+
+    // Run the shell command and its output will be available for reading from 'fp'
+    // This command lists all the directories in the user's home directory in the order of creation time
+    fp = popen("ls -1 -d -tr --time=birth $HOME/*/ | xargs -n 1 basename", "r");
+    if (fp == NULL) {
+        fprintf(stderr, "Failed to run command!\n");
+        return NULL;
+    }
+
+    // Read the output from 'fp' line by line
+    while (fgets(dir_name, sizeof(dir_name)-1, fp) != NULL) {
+        // Remove newline character
+        dir_name[strcspn(dir_name, "\n")] = 0;
+
+        // Change the size of the array of subdirectories
+        subdirs = realloc(subdirs, (subdir_count + 1) * sizeof(char *));
+        // Allocate memory for a new element of the subdirectories array
+        subdirs[subdir_count] = malloc(strlen(dir_name) + 1);
+
+        // Copy new subdirectory name read from 'fp' into the current array element
+        strcpy(subdirs[subdir_count], dir_name);
+        subdir_count++;
+    }
+
+    // Close the pipe and get the return code
+    int ret = pclose(fp);
+    if (ret == -1) {
+        fprintf(stderr, "Error while closing pipe\n");
+        return NULL;
+    }
+
+    *count = subdir_count;
+    return subdirs;
+}
+
+// Handle "dirlist -t" command 
+int handle_dirlist_time(int conn) {
+    int num_subdir;
+    char **subdirs = getSubdirectories_time(&num_subdir);
+    if (subdirs == NULL) {
+        fprintf(stderr, "Error: Failed to get subdirectories.\n");
+        return EXIT_FAILURE;
+    }
+
+    char message[200];
+    sprintf(message, "There are %d subdirectories:\n", num_subdir);
+    send(conn, message, strlen(message), 0);
+
+    // Send directories to the client one by one
+    for (int i = 0; i < num_subdir; i++) {
+        sleep(1);
+        send(conn, subdirs[i], strlen(subdirs[i]), 0);
 
         // Clear message buffer
         memset(subdirs[i], 0, sizeof(subdirs[i]));
@@ -96,6 +167,10 @@ void crequest(int conn, int server_port) {
 
             if (strstr(message, "dirlist -a") != NULL) {
                 handle_dirlist_alpha(conn);
+            }
+
+            if (strstr(message, "dirlist -t") != NULL) {
+                handle_dirlist_time(conn);
             }
 
             // Check for exit condition

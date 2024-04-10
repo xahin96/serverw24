@@ -52,7 +52,7 @@ char *getIPAddress() {
     return ipAddress;
 }
 
-void handle_dirlist_all(int fd) {
+void handle_dirlist(int fd) {
     char message[100] = "";
     int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
     while (!end_of_messages_received) {
@@ -129,8 +129,12 @@ int main() {
         fgets(message, sizeof(message), stdin);
         if (strstr(message, "dirlist -a") != NULL) {
             send(fd, message, strlen(message), 0);
-            handle_dirlist_all(fd);
-        } else if (strncmp(message, "quitc", 5) == 0) {
+            handle_dirlist(fd);
+        } else if (strstr(message, "dirlist -t") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_dirlist(fd);
+        }
+        else if (strncmp(message, "quitc", 5) == 0) {
             break;
         } else {
             send(fd, message, strlen(message), 0);
