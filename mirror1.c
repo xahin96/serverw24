@@ -4,9 +4,21 @@
 #include <netinet/in.h>
 #include <unistd.h> // For fork
 #include <string.h> // For memset
+#include <fcntl.h>
+#include <ftw.h>
+#include <time.h>
+#include <ctype.h>
 
 #define PORT_MIRROR1 9051
 
+// Function to trim trailing whitespace characters from a string
+void trim_trailing_whitespace(char *str) {
+    int len = strlen(str);
+    while (len > 0 && isspace((unsigned char)str[len - 1])) {
+        str[len - 1] = '\0';
+        len--;
+    }
+}
 
 // Get the list of subdirectories under home directory in the alphabetical order
 char** getSubdirectories_alpha(int *count) {
@@ -147,7 +159,135 @@ int handle_dirlist_time(int conn) {
     // Send termination message after sending all messages
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 
+    memset(message, 0, sizeof(message));
+
     free(subdirs);
+    return EXIT_SUCCESS;
+}
+
+// store the filename in the w24fn command received from client
+char *filename;  
+// store the information to be send to the client
+char name_message[20];
+char size_message[20];
+char date_message[50];
+char permission_message[26];
+
+// nftw() callback function to look for the first occurrence of the input file
+int checkFirst ( const char *filepath,
+                 const struct stat *sb,
+                 int typeflag,
+                 struct FTW *ftwbuf ) {
+
+    // Check if the input file existing in the traversed path
+    if (typeflag == FTW_F && strstr(filepath, filename) != NULL) {
+
+        // printf("File: %s\n", filename);
+        snprintf(name_message, sizeof(name_message), "\nFile: %s\n", filename);
+        // printf("Size: %ld bytes\n", sb->st_size);
+        snprintf(size_message, sizeof(size_message), "Size: %ld bytes\n", sb->st_size);
+        // printf("Date of Creation: %s\n", ctime(&sb->st_ctime));
+        snprintf(date_message, sizeof(date_message), "Date of Creation: %s", ctime(&sb->st_ctime));
+        snprintf(permission_message, sizeof(permission_message),
+                "Permissions: %c%c%c%c%c%c%c%c%c%c\n",
+                (S_ISDIR(sb->st_mode)) ? 'd' : '-',
+               (sb->st_mode & S_IRUSR) ? 'r' : '-',
+               (sb->st_mode & S_IWUSR) ? 'w' : '-',
+               (sb->st_mode & S_IXUSR) ? 'x' : '-',
+               (sb->st_mode & S_IRGRP) ? 'r' : '-',
+               (sb->st_mode & S_IWGRP) ? 'w' : '-',
+               (sb->st_mode & S_IXGRP) ? 'x' : '-',
+               (sb->st_mode & S_IROTH) ? 'r' : '-',
+               (sb->st_mode & S_IWOTH) ? 'w' : '-',
+               (sb->st_mode & S_IXOTH) ? 'x' : '-');
+
+        // return 1 to make the nftw() function stop the traverse after the first occurrence
+        return 1;
+    }
+    else
+        return 0;
+}
+
+// Split each command of userInput into argv
+char **split_command (char *clientCommands, int *argc) {
+
+    // Copy the command into another pointer
+    char *command_copy = strdup(clientCommands);
+
+    // Reset the number of arguments as 0
+    *argc = 0;
+    char **argv = malloc(sizeof(char *) * 6);
+
+    // Get the first token from userInput, which is the name of the command
+    char *token = strtok (command_copy, " ");
+
+    while ( token != NULL ) {
+
+        // Duplicate the token to argv[]
+        argv[*argc] = strdup (token);
+        (*argc)++;
+
+        // Split userInput into arguments based on space " "
+        token = strtok(NULL, " ");
+    }
+
+    // Free the memory allocated for command_copy
+    free(command_copy);
+    return argv;
+}
+
+int handle_w24fn_filename(int conn, char *message) {
+
+    // Trim the white space after the message
+    // trim_trailing_whitespace(message);
+
+    int argc;
+    char **argv = split_command(message, &argc);
+
+    filename = argv[1];
+    // printf("file name : %s\n", filename);
+
+    const char *home_dir = getenv("HOME");   
+    // const char *home_dir = "/home/song59/Desktop/asp/shellscript";   // for testing
+
+    // Traverse all files in the home directory, the second argument
+    int searchResult = nftw(home_dir, checkFirst, 20, FTW_NS);
+
+    // nftw() returns 1 if the callback function checkFirst() returns 1
+    // Which means the file has been found
+    if ( searchResult > 0 ){
+        send(conn, name_message, strlen(name_message), 0);
+        // printf("File: %s\n", filename);
+        sleep(1);
+
+        send(conn, size_message, strlen(size_message), 0);
+        // printf("%s\n", size_message);
+        sleep(1);
+        
+        send(conn, date_message, strlen(date_message), 0);
+        // printf("%s", date_message);
+        sleep(1);
+
+        send(conn, permission_message, strlen(permission_message), 0);
+        // printf("%s\n", permission_message);
+    }
+
+    // checkFirst() function returns 0 when the tree is exhausted
+    // Which means the traversal was performed but the file was not found
+    // In this case, nftw() also returns 0 to searchResult
+    else {
+        send(conn, "File not found!", strlen("File not found!"), 0);
+        printf("\nFile not found!\n\n");
+    }
+
+    // Send termination message after sending all messages
+    send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
+
+    memset(filename, 0, sizeof(filename));
+    memset(size_message, 0, sizeof(size_message));
+    memset(date_message, 0, sizeof(date_message));
+    memset(permission_message, 0, sizeof(permission_message));
+
     return EXIT_SUCCESS;
 }
 
@@ -159,6 +299,9 @@ void crequest(int conn) {
     while (1) {
         // Receive message from client
         if (recv(conn, message, sizeof(message), 0) > 0) {
+            // Trim the white space after the message
+            trim_trailing_whitespace(message);
+            
             printf("Client message for mirror 1: %s\n", message);
 
             if (strstr(message, "dirlist -a") != NULL) {
@@ -167,6 +310,10 @@ void crequest(int conn) {
 
             if (strstr(message, "dirlist -t") != NULL) {
                 handle_dirlist_time(conn);
+            }
+
+            if (strstr(message, "w24fn") != NULL) {
+                handle_w24fn_filename(conn, message);
             }
 
             // Check for exit condition

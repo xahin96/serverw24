@@ -52,7 +52,51 @@ char *getIPAddress() {
     return ipAddress;
 }
 
-void handle_dirlist(int fd) {
+void handle_dirlist_alpha(int fd) {
+    char message[100] = "";
+    int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
+    while (!end_of_messages_received) {
+        // Receive message from server
+        memset(message, 0, sizeof(message)); // Clear message buffer
+        int bytes_received = recv(fd, message, sizeof(message), 0);
+        if (bytes_received > 0) {
+            printf("%s\n", message);
+            if (strstr(message, "END_OF_MESSAGES") != NULL) {
+                end_of_messages_received = 1; // Set flag to true
+            }
+        } else if (bytes_received == 0) {
+            break; // Terminate loop when connection closed
+        } else {
+            // Handle the case where recv returns -1 (indicating error)
+            perror("recv");
+            break;
+        }
+    }
+}
+
+void handle_dirlist_time(int fd) {
+    char message[100] = "";
+    int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
+    while (!end_of_messages_received) {
+        // Receive message from server
+        memset(message, 0, sizeof(message)); // Clear message buffer
+        int bytes_received = recv(fd, message, sizeof(message), 0);
+        if (bytes_received > 0) {
+            printf("%s\n", message);
+            if (strstr(message, "END_OF_MESSAGES") != NULL) {
+                end_of_messages_received = 1; // Set flag to true
+            }
+        } else if (bytes_received == 0) {
+            break; // Terminate loop when connection closed
+        } else {
+            // Handle the case where recv returns -1 (indicating error)
+            perror("recv");
+            break;
+        }
+    }
+}
+
+void handle_w24fn_filename(int fd) {
     char message[100] = "";
     int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
     while (!end_of_messages_received) {
@@ -75,7 +119,9 @@ void handle_dirlist(int fd) {
 }
 
 int main() {
-    char *ipAddress = getIPAddress();
+    // char *ipAddress = getIPAddress();    // Mac
+    char *ipAddress = "127.0.0.1";          // Linux
+
     struct sockaddr_in serv;
     int fd;
     char message[100] = "";
@@ -129,10 +175,13 @@ int main() {
         fgets(message, sizeof(message), stdin);
         if (strstr(message, "dirlist -a") != NULL) {
             send(fd, message, strlen(message), 0);
-            handle_dirlist(fd);
+            handle_dirlist_alpha(fd);
         } else if (strstr(message, "dirlist -t") != NULL) {
             send(fd, message, strlen(message), 0);
-            handle_dirlist(fd);
+            handle_dirlist_time(fd);
+        } else if (strstr(message, "w24fn") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_w24fn_filename(fd);
         }
         else if (strncmp(message, "quitc", 5) == 0) {
             break;
