@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 32768
 
 
 #define DEST_FILE "destination/file.tar.gz"
@@ -39,7 +39,15 @@ void handle_w24fz_all(int fd) {
     // Receive file size string
     char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
     memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
-    recv(fd, file_size_str, sizeof(file_size_str) - 1, 0);
+//    recv(fd, file_size_str, sizeof(file_size_str) - 1, 0);
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
 
     printf("file size from client str: %s \n", file_size_str);
 

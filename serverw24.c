@@ -7,7 +7,7 @@
 #include <time.h>
 
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 32768
 #define PORT_SERVER 9050
 #define PORT_MIRROR1 9051
 #define PORT_MIRROR2 9052
@@ -64,12 +64,34 @@ void handle_w24fz_all(int conn) {
     printf("file size from server str: %s\n", file_size_str);
 
     send(conn, file_size_str, strlen(file_size_str), 0);
+    sleep_ms(100); // sleep for 1000 milliseconds (1 second)
+
+    send(conn, file_size_str, strlen(file_size_str), 0);
+    sleep_ms(100); // sleep for 1000 milliseconds (1 second)
+
+    send(conn, file_size_str, strlen(file_size_str), 0);
+    sleep_ms(100); // sleep for 1000 milliseconds (1 second)
+
+    send(conn, file_size_str, strlen(file_size_str), 0);
+    sleep_ms(100); // sleep for 1000 milliseconds (1 second)
+
+    send(conn, file_size_str, strlen(file_size_str), 0);
+    sleep_ms(100); // sleep for 1000 milliseconds (1 second)
+
+    send(conn, file_size_str, strlen(file_size_str), 0);
+    sleep_ms(100); // sleep for 1000 milliseconds (1 second)
+
+    send(conn, file_size_str, strlen(file_size_str), 0);
+    sleep_ms(100); // sleep for 1000 milliseconds (1 second)
+
+    send(conn, file_size_str, strlen(file_size_str), 0);
 
     // Send file data to client
     char buffer[BUFFER_SIZE];
     size_t bytes_read;
+    int i = 0;
     while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
-        printf("bytes found \n");
+        printf("bytes found: %d \n", i = i+1);
         printf("bytes size: %lu \n", sizeof(buffer));
         sleep_ms(100); // sleep for 1000 milliseconds (1 second)
         if (send(conn, buffer, bytes_read, 0) != bytes_read) {
