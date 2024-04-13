@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE 500 // Required for nftw
+
 #include <stdio.h>
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -8,6 +10,12 @@
 #include <ftw.h>
 #include <time.h>
 #include <ctype.h>
+#include <sys/wait.h>
+#include <libgen.h>
+#include <err.h>
+#include <limits.h>
+#include <dirent.h>
+#include <errno.h>
 
 #define PORT_MIRROR1 9051
 
@@ -20,6 +28,7 @@ void trim_trailing_whitespace(char *str) {
     }
 }
 
+// functions for "dirlist -a"
 // Get the list of subdirectories under home directory in the alphabetical order
 char** getSubdirectories_alpha(int *count) {
     FILE *fp;   // file pointer
@@ -31,7 +40,7 @@ char** getSubdirectories_alpha(int *count) {
     // This command lists all the directories in the user's home directory
     // strips their full path with only directory name left
     // sorts them in a case-insensitive manner
-    fp = popen("ls -1d $HOME/*/ | xargs -n 1 basename | sort -f", "r");
+    fp = popen("find ~/Desktop/asp -type d -printf '%P\n' | xargs -n 1 basename | sort -f", "r");
     if (fp == NULL) {
         fprintf(stderr, "Failed to run command\n");
         return NULL;
@@ -92,76 +101,83 @@ int handle_dirlist_alpha(int conn) {
     return EXIT_SUCCESS;
 }
 
-// Get all the subdirectories in home directory in order of creation time
-char** getSubdirectories_time(int *count) {
-    FILE *fp;   // file pointer
-    char dir_name[1035];    // name of a directory
-    char **subdirs = NULL;  // array of pointers referring to all the subdirectories
-    int subdir_count = 0;   // number of subdirectories, initialized as 0
+// functions for "dirlist -t" 
+// Define the struct type DirInfo
+typedef struct {
+    char name[PATH_MAX];
+    time_t created_time;
+} DirInfo;
 
-    // Run the shell command and its output will be available for reading from 'fp'
-    // This command lists all the directories in the user's home directory in the order of creation time
-    fp = popen("ls -1 -d -tr --time=birth $HOME/*/ | xargs -n 1 basename", "r");
-    if (fp == NULL) {
-        fprintf(stderr, "Failed to run command!\n");
-        return NULL;
+static int num_dirs = 0;    // Number of subdirectories
+static DirInfo *dir_list = NULL;    // Point to the first element of the directory struct array
+char *home_dir = "/home/song59/Desktop/asp";    // home directory
+
+// Compare two elements in the array
+// Will be called by qsort() function
+int compare_dirinfo(const void *a, const void *b) {
+    return ((DirInfo *)a)->created_time - ((DirInfo *)b)->created_time;
+}
+
+// Callback function of nftw() to process each directory in traverse
+static int process_directory(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
+    
+    // Check if the current node is a directory and not the root directory
+    if (typeflag == FTW_D && strcmp(fpath, home_dir) != 0) {
+
+        // increase the number of directories by 1
+        num_dirs++; 
+
+        // Add more memory in the array
+        dir_list = realloc(dir_list, num_dirs * sizeof(DirInfo));
+        if (!dir_list) {
+            fprintf(stderr, "Memory allocation error.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Set the curent file 
+        strcpy(dir_list[num_dirs - 1].name, fpath + ftwbuf->base);
+        dir_list[num_dirs - 1].created_time = sb->st_ctime;
     }
-
-    // Read the output from 'fp' line by line
-    while (fgets(dir_name, sizeof(dir_name)-1, fp) != NULL) {
-        // Remove newline character
-        dir_name[strcspn(dir_name, "\n")] = 0;
-
-        // Change the size of the array of subdirectories
-        subdirs = realloc(subdirs, (subdir_count + 1) * sizeof(char *));
-        // Allocate memory for a new element of the subdirectories array
-        subdirs[subdir_count] = malloc(strlen(dir_name) + 1);
-
-        // Copy new subdirectory name read from 'fp' into the current array element
-        strcpy(subdirs[subdir_count], dir_name);
-        subdir_count++;
-    }
-
-    // Close the pipe and get the return code
-    int ret = pclose(fp);
-    if (ret == -1) {
-        fprintf(stderr, "Error while closing pipe\n");
-        return NULL;
-    }
-
-    *count = subdir_count;
-    return subdirs;
+    return 0;
 }
 
 // Handle "dirlist -t" command 
 int handle_dirlist_time(int conn) {
-    int num_subdir;
-    char **subdirs = getSubdirectories_time(&num_subdir);
-    if (subdirs == NULL) {
-        fprintf(stderr, "Error: Failed to get subdirectories.\n");
-        return EXIT_FAILURE;
+    
+    if (!home_dir) {
+        fprintf(stderr, "Could not get HOME environment variable.\n");
+        exit(EXIT_FAILURE);
     }
 
+    // Traverse the home directory tree
+    int flags = FTW_PHYS; // Use physical file type, do not follow symbolic links
+    if (nftw(home_dir, process_directory, 10, flags) == -1) {
+        perror("nftw");
+        exit(EXIT_FAILURE);
+    }
+
+    // Sort the directories by creation time
+    qsort(dir_list, num_dirs, sizeof(DirInfo), compare_dirinfo);
+
     char message[200];
-    sprintf(message, "There are %d subdirectories:\n", num_subdir);
+    sprintf(message, "There are %d subdirectories:\n", num_dirs);
     send(conn, message, strlen(message), 0);
 
     // Send directories to the client one by one
-    for (int i = 0; i < num_subdir; i++) {
+    for (int i = 0; i < num_dirs; i++) {
         sleep(1);
-        send(conn, subdirs[i], strlen(subdirs[i]), 0);
+        send(conn, dir_list[i].name, strlen(dir_list[i].name), 0);
 
         // Clear message buffer
-        memset(subdirs[i], 0, sizeof(subdirs[i]));
-        free(subdirs[i]);
-    }
+        memset(dir_list[i].name, 0, sizeof(dir_list[i].name));
+            }
     
     // Send termination message after sending all messages
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 
     memset(message, 0, sizeof(message));
 
-    free(subdirs);
+    free(dir_list);
     return EXIT_SUCCESS;
 }
 
