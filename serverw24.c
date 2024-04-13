@@ -4,19 +4,35 @@
 #include <netinet/in.h>
 #include <unistd.h> // For fork
 #include <string.h> // For memset
+#include <time.h>
 
+
+#define BUFFER_SIZE 1024
 #define PORT_SERVER 9050
 #define PORT_MIRROR1 9051
 #define PORT_MIRROR2 9052
 
+
+#define FILENAME "source/file.tar.gz"
+
+
 int total_client = 0;
 int server_index = 0;
+
+
+void sleep_ms(int milliseconds) {
+    struct timespec ts;
+    ts.tv_sec = milliseconds / 1000;
+    ts.tv_nsec = (milliseconds % 1000) * 1000000;
+    while (nanosleep(&ts, &ts) == -1);
+}
+
 
 void handle_dirlist_all(int conn) {
     char message[200];
     int num_messages = 0;
     while (num_messages < 5) {
-        sleep(1);
+        sleep_ms(100); // sleep for 1000 milliseconds (1 second)
         sprintf(message, "message - %d", num_messages); // Create the message
         send(conn, message, strlen(message), 0);
         num_messages++;
@@ -26,10 +42,51 @@ void handle_dirlist_all(int conn) {
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 }
 
+
+void handle_w24fz_all(int conn) {
+    // Open the file to send
+    FILE *file = fopen(FILENAME, "rb");
+    if (!file) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Get the file size
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    printf("file size from server: %ld \n", file_size);
+
+    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
+    sprintf(file_size_str, "%ld", file_size);
+
+    printf("file size from server str: %s\n", file_size_str);
+
+    send(conn, file_size_str, strlen(file_size_str), 0);
+
+    // Send file data to client
+    char buffer[BUFFER_SIZE];
+    size_t bytes_read;
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+        printf("bytes found \n");
+        printf("bytes size: %lu \n", sizeof(buffer));
+        sleep_ms(100); // sleep for 1000 milliseconds (1 second)
+        if (send(conn, buffer, bytes_read, 0) != bytes_read) {
+            perror("send");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    fclose(file);
+    printf("File sent successfully.\n");
+}
+
+
 // Function to handle client requests
 void crequest(int conn, int server_port) {
     char message[100] = "";
-    send(conn, "Server will handle the request", strlen("Server will handle the request"), 0);
+    send(conn, "Server will handle the request\n", strlen("Server will handle the request\n"), 0);
 
     while (1) {
         // Receive message from client
@@ -38,6 +95,10 @@ void crequest(int conn, int server_port) {
 
             if (strstr(message, "dirlist -a") != NULL) {
                 handle_dirlist_all(conn);
+            }
+
+            if (strstr(message, "w24fz") != NULL) {
+                handle_w24fz_all(conn);
             }
 
             // Check for exit condition
@@ -56,21 +117,6 @@ void crequest(int conn, int server_port) {
     close(conn); // Close the connection socket
 }
 
-void run_child_process(int fd, int conn, int server_port){
-    int pid;
-    if ((pid = fork()) == 0) {
-        // Child process
-        close(fd); // Close the listening socket in the child process
-        crequest(conn, server_port); // Handle client requests and instruct client to reconnect to mirror server
-        exit(EXIT_SUCCESS);
-    } else if (pid == -1) {
-        perror("Fork failed");
-        exit(EXIT_FAILURE);
-    } else {
-        // Parent process
-        close(conn); // Close the connection socket in the parent process
-    }
-}
 
 int main() {
     struct sockaddr_in server;
@@ -134,7 +180,7 @@ int main() {
         }
 
         // Send "Server will handle the request" message
-        send(fd_client, "Server will handle the request", strlen("Server will handle the request"), 0);
+        send(fd_client, "Server will handle the request\n", strlen("Server will handle the request\n"), 0);
 
         // Increment total_client count
         total_client++;
