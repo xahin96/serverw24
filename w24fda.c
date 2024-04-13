@@ -12,7 +12,7 @@
 #include <time.h>
 #include <sys/wait.h>
 
-int size1, size2;
+char *start_date;
 int errorFLAG = -1;             // this flag is for printing appropriate error messages when searching for files as request
 char allFileNames[100000];      // store all the file paths and names for tar command
 
@@ -33,14 +33,18 @@ int combineFileName ( const char *filepath, const char *filename ) {
     return 1;
 }
 
-int checkSize ( const char *filepath,
+int checkDate ( const char *filepath,
                   const struct stat *sb,
                   int typeflag,
                   struct FTW *ftwbuf) {
 
-    // Check if the size of a file is as request
-    if (typeflag == FTW_F && sb->st_size >= size1 && sb->st_size <= size2 ) {
-        // printf("%s\n", filepath + ftwbuf->base);
+    char ctime[10];
+    strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&sb->st_ctime));
+
+    // Check if the creation date of a file is as request
+    if (typeflag == FTW_F && strcmp(ctime, start_date) >= 0 ) {
+        
+        printf("%s: %s\n", filepath + ftwbuf->base, ctime);
 
         // Check if the file is existing in allFileNames
         // If not, add its path and name into the allFileName
@@ -60,24 +64,18 @@ int checkSize ( const char *filepath,
         return 0;
 }
 
-// Create a TAR file that contains all the files founded in home directory, whose size is >= argv[1] and <= argv[2]
+// Create a TAR file that contains all the files founded in home directory, which is created after an start_date
 int main ( int argc, char *argv[] ) {
 
-    // size1 <= size2
-    // size1 >= 0 and size2 >= 0
-    size1 = atoi(argv[1]);
-    size2 = atoi(argv[2]);
-    // printf("size1 = %d, \nsize2 = %d\n", size1, size2);
+    start_date = argv[1];
+    // printf("date = %s\n", end_date);
 
     // char *home_dir = getenv("HOME");
     // Change the home directory later
     char *home_dir = "/Users/nanasmacbookprowithtouchbar/folder1";
 
-    // initialize the string
-    *allFileNames = NULL;
-
     // Traverse the home directory
-    int searchResult = nftw(home_dir, checkSize, 20, FTW_PHYS);
+    int searchResult = nftw(home_dir, checkDate, 20, FTW_PHYS);
 
     // Search successful with no errors during traversal
     if ( searchResult == 0 ){

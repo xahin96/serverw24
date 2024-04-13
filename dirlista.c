@@ -12,7 +12,7 @@ char** getSubdirectories_alpha(int *count) {
     // This command lists all the directories in the user's home directory
     // strips their full path with only directory name left
     // sorts them in a case-insensitive manner
-    fp = popen("ls -1d $HOME/*/ | xargs -n 1 basename | sort -f", "r");
+    fp = popen("find ~/Desktop/asp -type d -printf '%P\n' | xargs -n 1 basename | sort -f", "r");
     if (fp == NULL) {
         fprintf(stderr, "Failed to run command\n");
         return NULL;
