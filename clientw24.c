@@ -10,7 +10,7 @@
 #define BUFFER_SIZE 32768
 
 
-#define DEST_FILE "destination/file.tar.gz"
+#define DEST_FILE "./temp.tar.gz"
 
 void handle_dirlist_alpha(int fd) {
     char message[100] = "";
@@ -79,19 +79,12 @@ void handle_w24fn_filename(int fd) {
 }
 
 
-void handle_w24fz_all(int fd) {
+void handle_w24fz_size(int fd) {
     // Receive file size string
     char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
-    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
-//    recv(fd, file_size_str, sizeof(file_size_str) - 1, 0);
+    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
     recv(fd, file_size_str, sizeof(file_size_str), 0);
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    printf("1 : %s\n", file_size_str);
 
     printf("file size from client str: %s \n", file_size_str);
 
@@ -100,6 +93,8 @@ void handle_w24fz_all(int fd) {
     long file_size = atol(file_size_str);
 
     printf("file size from client: %ld \n", file_size);
+    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
+
 
     // Open destination file for writing
     FILE *file = fopen(DEST_FILE, "wb");
@@ -112,14 +107,19 @@ void handle_w24fz_all(int fd) {
     size_t total_bytes_received = 0;
     size_t bytes_received;
     char buffer[BUFFER_SIZE];
+    printf(" globalbuffer : %s\n", buffer);
     while (total_bytes_received < file_size) {
         memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+        printf("sizeof(buffer) : %d\n", sizeof(buffer));
         bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+        printf("bytes_received : %d\n", bytes_received);
+        printf("buffer : %s\n", buffer);
         if (bytes_received <= 0) {
             perror("recv");
             exit(EXIT_FAILURE);
         }
         total_bytes_received += bytes_received;
+        printf("total_bytes_received: %d\n", total_bytes_received);
         fwrite(buffer, 1, bytes_received, file);
     }
 
@@ -129,8 +129,7 @@ void handle_w24fz_all(int fd) {
 
 
 int main() {
-    // char *ipAddress = getIPAddress();    // Mac
-    char *ipAddress = "127.0.0.1";          // Linux
+    char *ipAddress = "127.0.0.1";   
 
     struct sockaddr_in serv;
     int fd;
@@ -144,7 +143,7 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9050);
+    serv.sin_port = htons(9054);
     if (inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
@@ -175,12 +174,11 @@ int main() {
                 // Normal message received from the server
                 printf("Server: %s\n", message);
             }
-            memset(message, 0, sizeof(message)); // Clear message buffer
+            memset(&message, 0, strlen(message)); // Clear message buffer
         }
     }
 
     while (1) {
-        printf("Client sent 'w24fz' message\n");
 
         // Send message to server
         printf("clientw24$ ");
@@ -196,7 +194,7 @@ int main() {
             handle_w24fn_filename(fd);
         } else if (strstr(message, "w24fz") != NULL) {
             send(fd, message, strlen(message), 0);
-            handle_w24fz_all(fd);
+            handle_w24fz_size(fd);
         } else if (strncmp(message, "quitc", 5) == 0) {
             break;
         } else {
