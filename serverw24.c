@@ -645,13 +645,9 @@ int checkDateAfter ( const char *filepath,
     
     char file_path[PATH_MAX];
     strcpy(file_path, filepath);
-    // printf("file_path = %s\n", file_path);
 
     char ctime[15];
     strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&sb->st_ctime));
-    // printf("ctime = %s\n", ctime);
-    // printf("start date = %s\n", start_date);
-    // printf("strcmp = %d\n", strcmp(ctime, start_date));
 
     // Check if the creation date of a file is larger than the start date input from client
     if (typeflag == FTW_F && strcmp(ctime, start_date) >= 0 ) {
@@ -683,7 +679,6 @@ void handle_w24fda_after(int conn, char *message) {
     char **argv = split_command(message, &argc);
 
     start_date = argv[1];
-    // printf("date = %s\n", start_date);
 
     // char *home_dir = getenv("HOME");
     // Change the home directory later
@@ -738,6 +733,125 @@ void handle_w24fda_after(int conn, char *message) {
     }
 }
 
+char *end_date;
+int errorFLAGfdb = -1;             // this flag is for printing appropriate error messages when searching for files as request
+char allFileNamesfdb[100000];      // store all the file paths and names for tar command
+
+// Create a formatted string that represents the file paths and names for archiving
+// The shell command format for filepath: -C "filepath1" filename1.extension -C "filepath2" filename2.extension
+// Using this format with "-C" is for only archiving the file instead of including all their directories
+int combineFileNamefdb ( const char *filepath, const char *filename ) {
+    char quoted_path[PATH_MAX + 3];     // Store quoted directory
+
+    // Extract the directory path of the current filepath
+    char *file_dir = dirname (filepath);
+
+    // This format is to archive all the files without their directory structure
+    sprintf(allFileNamesfdb, "%s -C \"%s\" \"%s\"", allFileNamesfdb, file_dir, filename);
+
+    // Return 1 to indicate successful completion
+    return 1;
+}
+
+int checkDateBefore ( const char *filepath,
+                  const struct stat *sb,
+                  int typeflag,
+                  struct FTW *ftwbuf) {
+
+    char file_path[PATH_MAX];
+    strcpy(file_path, filepath);
+
+    char ctime[15];
+    strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&sb->st_ctime));
+    
+    printf("ctime = %s\n", ctime);
+    printf("end date = %s\n", end_date);
+
+    // Check if the creation date of a file is as request
+    if (typeflag == FTW_F && strcmp(ctime, end_date) <= 0 ) {
+        
+        printf("file_path: %s\n ctime: %s\n\n", file_path + ftwbuf->base, ctime);
+
+        // Check if the file is existing in allFileNamesfdb
+        // If not, add its path and name into the allFileName
+        if ( strstr(allFileNamesfdb, file_path) == NULL ) {
+            int a = combineFileNamefdb (file_path, file_path + ftwbuf->base );
+        }
+
+        // Set this variable as 0 to indicate that searching is successful
+        errorFLAGfdb = 0;
+
+        // return 0 to make the nftw() function continue the traverse
+        return 0;
+    }
+
+    // If not existing, it returns 0 to continue the traverse
+    else
+        return 0;
+}
+
+// Create a TAR file that contains all the files founded in home directory, which is created before an end_date
+void handle_w24fdb_before ( int conn, char *message ) {
+
+    int argc;
+    char **argv = split_command(message, &argc);
+
+    end_date = argv[1];
+
+    // char *home_dir = getenv("HOME");
+    // Change the home directory later
+    char *home_dir = "/home/song59/Desktop/asp/shellscript/test";
+
+    // Traverse the home directory
+    int searchResult = nftw(home_dir, checkDateBefore, 20, FTW_PHYS);
+
+    // Search successful with no errors during traversal
+    if ( searchResult == 0 ){
+
+        // All files were found successfully
+        if ( errorFLAGfdb == 0 ) {
+            // printf("Search successful! All your requested files are showed above!\n\n");
+
+            // Create the path of the TAR archive named temp.tar.gz in home directory
+            char tar_filepath[PATH_MAX];
+            sprintf(tar_filepath, "%s/temp.tar.gz", home_dir);
+
+            // Construct the shell command to compress the files into a TAR archive using "tar -czf"
+            char command[100000];   // a string to store the command
+            int error = 0;
+            sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesfdb);
+
+            // Execute the command using system()
+            error = system(command);
+
+            // If the TAR archive was created successfully, print successful message
+            if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
+                printf("\nTAR file created successful! The path is: \n%s\n\n", tar_filepath);
+                sendFile(conn, tar_filepath);            
+            }
+
+            // Otherwise print a failure message
+            else {
+                printf("\nTAR file created unsuccessful!\n\n");
+                send(conn, "\nTAR file created unsuccessful!\n\n", strlen("\nTAR file created unsuccessful!\n\n"), 0);            
+            }
+        }
+
+        // The value of errorFLAGfdb will remain as -1 if there is no such file in the source directory
+        else if ( errorFLAGfdb == -1 ) {
+            printf("\nNo file found\n\n");
+            send(conn, "\nNo file found\n\n", strlen("\nNo file found\n\n"), 0);
+        }
+    }
+
+    // nftw() returns -1 to searchResult when it detects an error and has not performed the traversal
+    else if (searchResult == -1) {
+        printf("\nError Searching\n\n");
+        send(conn, "\nError Searching\n\n", strlen("\nError Searching\n\n"), 0);
+    }
+}
+
+
 // Function to handle client requests
 void crequest(int conn, int server_port) {
     char message[100] = "";
@@ -776,7 +890,7 @@ void crequest(int conn, int server_port) {
             }
 
             if (strstr(message, "w24fdb") != NULL) {
-                // handle_w24fda_before(conn, message);
+                handle_w24fdb_before(conn, message);
             }
 
             // Check for exit condition

@@ -31,7 +31,6 @@ int combineFileNamefda ( const char *filepath, const char *filename ) {
 
     // This format is to archive all the files without their directory structure
     sprintf(allFileNamesfda, "%s -C \"%s\" \"%s\"", allFileNamesfda, file_dir, filename);
-    // printf("allFileNamesfda = %s\n", allFileNamesfda);
 
     // Return 1 to indicate successful completion
     return 1;
@@ -50,7 +49,6 @@ int checkDateAfter ( const char *filepath,
     strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&sb->st_ctime));
     printf("ctime = %s\n", ctime);
     printf("start date = %s\n", start_date);
-    // printf("strcmp = %d\n", strcmp(ctime, start_date));
 
     // Check if the creation date of a file is larger than the start date input from client
     if (typeflag == FTW_F && strcmp(ctime, start_date) >= 0 ) {
@@ -60,7 +58,6 @@ int checkDateAfter ( const char *filepath,
         // Check if the file is existing in allFileNamesfda
         // If not, add its path and name into the allFileName
         if ( strstr(allFileNamesfda, file_path) == NULL ) {
-            printf("come here\n");
             int a = combineFileNamefda (file_path, file_path + ftwbuf->base );
         }
 
