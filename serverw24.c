@@ -18,7 +18,7 @@
 
 
 #define BUFFER_SIZE 32768
-#define PORT_SERVER 9054
+#define PORT_SERVER 9055
 #define PORT_MIRROR1 9051
 #define PORT_MIRROR2 9052
 
@@ -324,97 +324,9 @@ int handle_w24fn_filename(int conn, char *message) {
     return EXIT_SUCCESS;
 }
 
-int size1, size2;               // store the arguments input by client
-int errorFLAG = -1;             // this flag is for printing appropriate error messages when searching for files as request
-char allFileNamesfz[100000];      // store all the file paths and names for tar command
-
-// Create a formatted string that represents the file paths and names for archiving
-// The shell command format for filepath: -C "filepath1" filename1.extension -C "filepath2" filename2.extension
-// Using this format with "-C" is for only archiving the file instead of including all their directories
-int combineFileName ( const char *filepath, const char *filename ) {
-    char quoted_path[PATH_MAX + 3];     // Store quoted directory
-
-    // Extract the directory path of the current filepath
-    char *file_dir = dirname (filepath);
-
-    // This format is to archive all the files without their directory structure
-    sprintf(allFileNamesfz, "%s -C \"%s\" \"%s\"", allFileNamesfz, file_dir, filename);
-
-    // Return 1 to indicate successful completion
-    return 1;
-}
-
-int checkSize ( const char *filepath,
-                  const struct stat *sb,
-                  int typeflag,
-                  struct FTW *ftwbuf) {
-
-    // Check if the size of a file is as request
-    if (typeflag == FTW_F && sb->st_size >= size1 && sb->st_size <= size2 ) {
-
-        // Check if the file is existing in allFileNames
-        // If not, add its path and name into the allFileName
-        if ( strstr(allFileNamesfz, filepath) == NULL ) {
-            int a = combineFileName (filepath, filepath + ftwbuf->base );
-        }
-
-        // Set this variable as 0 to indicate that searching is successful
-        errorFLAG = 0;
-
-        // return 0 to make the nftw() function continue the traverse
-        return 0;
-    }
-
-    // If not existing, it returns 0 to continue the traverse
-    else
-        return 0;
-}
-
-// Handle "w24fz" command
-void handle_w24fz_size(int conn, char *message) {
-
-    int argc;
-    char **argv = split_command(message, &argc);
-
-    // size1 <= size2
-    // size1 >= 0 and size2 >= 0
-    size1 = atoi(argv[1]);
-    size2 = atoi(argv[2]);
-
-    // char *home_dir = getenv("HOME");
-    // Change the home directory later
-    char *home_dir = "/home/song59/Desktop/asp";
-
-    // initialize the string
-    *allFileNamesfz = NULL;
-
-    // Traverse the home directory
-    int searchResult = nftw(home_dir, checkSize, 20, FTW_PHYS);
-
-    // Search successful with no errors during traversal
-    if ( searchResult == 0 ){
-
-        // All files were found successfully
-        if ( errorFLAG == 0 ) {
-
-            // Create the path of the TAR archive named temp.tar.gz in home directory
-            char tar_filepath[PATH_MAX];
-            sprintf(tar_filepath, "%s/temp.tar.gz", home_dir);
-
-            // Construct the shell command to compress the files into a TAR archive using "tar -czf"
-            char command[100000];   // a string to store the command
-            int error = 0;
-            sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesfz);
-
-            // Execute the command using system()
-            error = system(command);
-
-            // If the TAR archive was created successfully, print successful message
-            if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
-                printf("\nTAR file created successful! The path is: \n%s\n\n", tar_filepath);
-
-                // Open the file to send
-                FILE *file = fopen(tar_filepath, "rb");
+void sendFile(int conn, char *filepath) {
+        // Open the file to send
+                FILE *file = fopen(filepath, "rb");
                 if (!file) {
                     perror("Error opening file, %s");
                     exit(EXIT_FAILURE);
@@ -450,29 +362,262 @@ void handle_w24fz_size(int conn, char *message) {
 
                 fclose(file);
                 printf("File sent successfully.\n");
+}
+
+int size1, size2;               // store the arguments input by client
+int errorFLAGfz = -1;             // this flag is for printing appropriate error messages when searching for files as request
+char allFileNamesfz[100000];      // store all the file paths and names for tar command
+
+// Create a formatted string that represents the file paths and names for archiving
+// The shell command format for filepath: -C "filepath1" filename1.extension -C "filepath2" filename2.extension
+// Using this format with "-C" is for only archiving the file instead of including all their directories
+int combineFileNamefz ( const char *filepath, const char *filename ) {
+    char quoted_path[PATH_MAX + 3];     // Store quoted directory
+
+    // Extract the directory path of the current filepath
+    char *file_dir = dirname (filepath);
+    printf("path: %s\n", filepath);
+
+    // This format is to archive all the files without their directory structure
+    sprintf(allFileNamesfz, "%s -C \"%s\" \"%s\"", allFileNamesfz, file_dir, filename);
+
+    // Return 1 to indicate successful completion
+    return 1;
+}
+
+int checkSize ( const char *filepath,
+                  const struct stat *sb,
+                  int typeflag,
+                  struct FTW *ftwbuf) {
+
+    printf("path: %s\n", filepath);
+    char file_path[PATH_MAX];
+    strcpy(file_path, filepath);
+    // Check if the size of a file is as request
+    if (typeflag == FTW_F && sb->st_size >= size1 && sb->st_size <= size2 ) {
+
+        // Check if the file is existing in allFileNames
+        // If not, add its path and name into the allFileName
+        if ( strstr(allFileNamesfz, file_path) == NULL ) {
+            int a = combineFileNamefz (file_path, file_path + ftwbuf->base );
+        }
+
+        // Set this variable as 0 to indicate that searching is successful
+        errorFLAGfz = 0;
+
+        // return 0 to make the nftw() function continue the traverse
+        return 0;
+    }
+
+    // If not existing, it returns 0 to continue the traverse
+    else
+        return 0;
+}
+
+// Handle "w24fz" command
+void handle_w24fz_size(int conn, char *message) {
+
+    int argc;
+    char **argv = split_command(message, &argc);
+
+    // size1 <= size2
+    // size1 >= 0 and size2 >= 0
+    size1 = atoi(argv[1]);
+    size2 = atoi(argv[2]);
+
+    // char *home_dir = getenv("HOME");
+    // Change the home directory later
+    char *home_dir = "/home/song59/Desktop/asp";
+
+    // initialize the string
+    *allFileNamesfz = NULL;
+
+    // Traverse the home directory
+    int searchResult = nftw(home_dir, checkSize, 20, FTW_PHYS);
+
+    // Search successful with no errors during traversal
+    if ( searchResult == 0 ){
+
+        // All files were found successfully
+        if ( errorFLAGfz == 0 ) {
+
+            // Create the path of the TAR archive named temp.tar.gz in home directory
+            char tar_filepath[PATH_MAX];
+            sprintf(tar_filepath, "%s/temp.tar.gz", home_dir);
+
+            // Construct the shell command to compress the files into a TAR archive using "tar -czf"
+            char command[100000];   // a string to store the command
+            int error = 0;
+            sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesfz);
+
+            printf("command = %s\n", command);
+            // Execute the command using system()
+            error = system(command);
+
+            // If the TAR archive was created successfully, print successful message
+            if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
+                printf("\nTAR file created successful! The path is: \n%s\n\n", tar_filepath);
+                sendFile(conn, tar_filepath);                
             }
 
             // Otherwise print a failure message
-            else
+            else {
                 printf("\nTAR file created unsuccessful!\n\n");
                 send(conn, "\nTAR file created unsuccessful!\n\n", strlen("\nTAR file created unsuccessful!\n\n"), 0);
-
+            }
         }
 
         // The value of errorFLAG will remain as -1 if there is no such file in the source directory
-        else if ( errorFLAG == -1 ) {
+        else if ( errorFLAGfz == -1 ) {
             printf("\nNo file found\n\n");
-
             send(conn, "\nNo file found\n\n", strlen("\nNo file found\n\n"), 0);
         }
     }
 
     // nftw() returns -1 to searchResult when it detects an error and has not performed the traversal
-    else if (searchResult == -1)
+    else if (searchResult == -1) {
         printf("\nError Searching\n\n");
+    }
 
 }
 
+char *extensions[3];
+int num_ext;
+int errorFLAGft = -1;             // this flag is for printing appropriate error messages when searching for files as request
+char allFileNamesft[100000];      // store all the file paths and names for tar command
+
+// Compare each extension with a filename
+// Return 1, if one of the extensions matched
+// Return 0, if no extension matched
+int compare_extension (char *filename, char *extensions[]) {
+    for (int i = 0; i < num_ext; i++) {
+        if (strstr(filename, extensions[i]) != NULL) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int combineFileNameft ( const char *filepath, const char *filename ) {
+    char quoted_path[PATH_MAX + 3];     // Store quoted directory
+
+    // Extract the directory path of the current filepath
+    char *file_dir = dirname (filepath);
+    printf("path: %s\n", file_dir);
+
+    // This format is to archive all the files without their directory structure
+    sprintf(allFileNamesft, "%s -C \"%s\" \"%s\"", allFileNamesft, file_dir, filename);
+
+    // Return 1 to indicate successful completion
+    return 1;
+}
+
+// Check each directory in the directory tree
+int checkExt ( const char *filepath,
+                  const struct stat *sb,
+                  int typeflag,
+                  struct FTW *ftwbuf) {
+
+    char file_path[PATH_MAX];
+    strcpy(file_path, filepath);
+
+    // Check if the size of a file is as request
+    if (typeflag == FTW_F && compare_extension(file_path, extensions) == 1 ) {
+        printf("%s\n", file_path + ftwbuf->base);
+
+        // Check if the file is existing in allFileNames
+        // If not, add its path and name into the allFileName
+        if ( strstr(allFileNamesft, file_path) == NULL ) {
+            int a = combineFileNameft (file_path, file_path + ftwbuf->base );
+        }
+
+        // Set this variable as 0 to indicate that searching is successful
+        errorFLAGft = 0;
+
+        // return 0 to make the nftw() function continue the traverse
+        return 0;
+    }
+
+    // If not existing, it returns 0 to continue the traverse
+    else
+        return 0;
+}
+
+// Handle "w24ft" command
+void handle_w24ft_ext(int conn, char *message) {
+
+    int argc;
+    char **argv = split_command(message, &argc);
+
+    // Number of extension
+    num_ext = argc - 1;
+
+    for ( int i = 0; i < num_ext; i++ ) {
+        // Allocate memory to each pointer
+        extensions[i] = malloc(sizeof(char *));
+        // extension is "." + argument
+        sprintf(extensions[i], ".%s", argv[i+1]);
+        printf("extensions[ %d ] = %s\n", i, extensions[i]);
+    }
+
+
+    // char *home_dir = getenv("HOME");
+    // Change the home directory later
+    char *home_dir = "/home/song59/Desktop/asp";
+
+    // initialize the string
+    *allFileNamesft = NULL;
+
+    // Traverse the home directory
+    int searchResult = nftw(home_dir, checkExt, 20, FTW_PHYS);
+    printf("%d\n", searchResult);
+
+    // Search successful with no errors during traversal
+    if ( searchResult == 0 ){
+
+        // All files were found successfully
+        if ( errorFLAGft == 0 ) {
+
+            // Create the path of the TAR archive named temp.tar.gz in home directory
+            char tar_filepath[PATH_MAX];
+            sprintf(tar_filepath, "%s/temp.tar.gz", home_dir);
+
+            // Construct the shell command to compress the files into a TAR archive using "tar -czf"
+            char command[100000];   // a string to store the command
+            int error = 0;
+            sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesft);
+            printf("command = %s\n", command);
+
+            // Execute the command using system()
+            error = system(command);
+
+            // If the TAR archive was created successfully, print successful message
+            if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
+                printf("\nTAR file created successful! The path is: \n%s\n\n", tar_filepath);
+                sendFile(conn, tar_filepath);
+            }
+
+            // Otherwise print a failure message
+            else {
+                printf("\nTAR file created unsuccessful!\n\n");
+                send(conn, "\nTAR file created unsuccessful!\n\n", strlen("\nTAR file created unsuccessful!\n\n"), 0);
+            }
+
+        }
+
+        // The value of errorFLAG will remain as -1 if there is no such file in the source directory
+        else if ( errorFLAGft == -1 ) {
+            printf("\nNo file found\n\n");
+            send(conn, "\nNo file found\n\n", strlen("\nNo file found\n\n"), 0);
+        }
+    }
+
+    // nftw() returns -1 to searchResult when it detects an error and has not performed the traversal
+    else if (searchResult == -1) {
+        printf("\nError Searching\n\n");
+        send(conn, "\nError Searching\n\n", strlen("\nError Searching\n\n"), 0);
+    }
+}
 
 // Function to handle client requests
 void crequest(int conn, int server_port) {
@@ -501,6 +646,10 @@ void crequest(int conn, int server_port) {
 
             if (strstr(message, "w24fz") != NULL) {
                 handle_w24fz_size(conn, message);
+            }
+
+            if (strstr(message, "w24ft") != NULL) {
+                handle_w24ft_ext(conn, message);
             }
 
             // Check for exit condition

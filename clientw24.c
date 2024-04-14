@@ -127,6 +127,54 @@ void handle_w24fz_size(int fd) {
     fclose(file);
 }
 
+void handle_w24ft_ext(int fd) {
+    // Receive file size string
+    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    printf("1 : %s\n", file_size_str);
+
+    printf("file size from client str: %s \n", file_size_str);
+
+
+    // Convert file size string to long
+    long file_size = atol(file_size_str);
+
+    printf("file size from client: %ld \n", file_size);
+    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
+
+
+    // Open destination file for writing
+    FILE *file = fopen(DEST_FILE, "wb");
+    if (!file) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive file data and write to destination file
+    size_t total_bytes_received = 0;
+    size_t bytes_received;
+    char buffer[BUFFER_SIZE];
+    printf(" globalbuffer : %s\n", buffer);
+    while (total_bytes_received < file_size) {
+        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+        printf("sizeof(buffer) : %d\n", sizeof(buffer));
+        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+        printf("bytes_received : %d\n", bytes_received);
+        printf("buffer : %s\n", buffer);
+        if (bytes_received <= 0) {
+            perror("recv");
+            exit(EXIT_FAILURE);
+        }
+        total_bytes_received += bytes_received;
+        printf("total_bytes_received: %d\n", total_bytes_received);
+        fwrite(buffer, 1, bytes_received, file);
+    }
+
+    printf("File received successfully.\n");
+    fclose(file);
+}
+
 
 int main() {
     char *ipAddress = "127.0.0.1";   
@@ -143,7 +191,7 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9054);
+    serv.sin_port = htons(9055);
     if (inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
@@ -195,6 +243,9 @@ int main() {
         } else if (strstr(message, "w24fz") != NULL) {
             send(fd, message, strlen(message), 0);
             handle_w24fz_size(fd);
+        } else if (strstr(message, "w24ft") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_w24ft_ext(fd);
         } else if (strncmp(message, "quitc", 5) == 0) {
             break;
         } else {

@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE 500 // Required for nftw
+
 #include <ftw.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +13,11 @@
 #include <libgen.h>
 #include <time.h>
 #include <sys/wait.h>
+#include <errno.h>
+#include <netinet/in.h>
+#include <ctype.h>
+
+
 
 int size1, size2;
 int errorFLAG = -1;             // this flag is for printing appropriate error messages when searching for files as request
@@ -24,10 +31,14 @@ int combineFileName ( const char *filepath, const char *filename ) {
     char quoted_path[PATH_MAX + 3];     // Store quoted directory
 
     // Extract the directory path of the current filepath
-    char *file_dir = dirname (filepath);
+    char *file_dir = dirname(filepath);
+
+    // Make the directory path quoted by double quotation marks
+    // Store it in the 'quoted_path' variable
+    sprintf(quoted_path, "\"%s\"", file_dir);
 
     // This format is to archive all the files without their directory structure
-    sprintf(allFileNames, "%s -C \"%s\" \"%s\"", allFileNames, file_dir, filename);
+    sprintf(allFileNames, "%s -C %s %s", allFileNames, quoted_path, filename);
 
     // Return 1 to indicate successful completion
     return 1;
@@ -38,14 +49,19 @@ int checkSize ( const char *filepath,
                   int typeflag,
                   struct FTW *ftwbuf) {
 
+    printf("file: %s\n", filepath);
+
+    char file_path[PATH_MAX];
+    strcpy(file_path, filepath);
+    
     // Check if the size of a file is as request
     if (typeflag == FTW_F && sb->st_size >= size1 && sb->st_size <= size2 ) {
         // printf("%s\n", filepath + ftwbuf->base);
 
         // Check if the file is existing in allFileNames
         // If not, add its path and name into the allFileName
-        if ( strstr(allFileNames, filepath) == NULL ) {
-            int a = combineFileName (filepath, filepath + ftwbuf->base );
+        if ( strstr(allFileNames, file_path) == NULL ) {
+            combineFileName (file_path, file_path + ftwbuf->base );
         }
 
         // Set this variable as 0 to indicate that searching is successful
@@ -71,13 +87,13 @@ int main ( int argc, char *argv[] ) {
 
     // char *home_dir = getenv("HOME");
     // Change the home directory later
-    char *home_dir = "/Users/nanasmacbookprowithtouchbar/folder1";
+    char *home_dir = "/home/song59/Desktop/asp";
 
     // initialize the string
     *allFileNames = NULL;
 
     // Traverse the home directory
-    int searchResult = nftw(home_dir, checkSize, 20, FTW_PHYS);
+    int searchResult = nftw(home_dir, checkSize, 20, FTW_NS);
 
     // Search successful with no errors during traversal
     if ( searchResult == 0 ){
