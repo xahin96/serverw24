@@ -10,11 +10,8 @@
 #include <fcntl.h>
 #include <ftw.h>
 #include <ctype.h>
-#include <libgen.h>
-#include <err.h>
 #include <limits.h>
-#include <dirent.h>
-#include <errno.h>
+#include <sys/stat.h>
 
 
 #define BUFFER_SIZE 32768
@@ -117,7 +114,7 @@ int handle_dirlist_alpha(int conn) {
         send(conn, subdirs[i], strlen(subdirs[i]), 0);
 
         // Clear message buffer
-        memset(subdirs[i], 0, sizeof(subdirs[i]));
+        memset(subdirs[i], 0, strlen(subdirs[i]));
         free(subdirs[i]);
     }
 
@@ -217,38 +214,36 @@ char date_message[50];
 char permission_message[26];
 
 // nftw() callback function to look for the first occurrence of the input file
-int checkFirst ( const char *filepath,
-                 const struct stat *sb,
-                 int typeflag,
-                 struct FTW *ftwbuf ) {
+int checkFirst(const char *filepath,
+               const struct stat *sb,
+               int typeflag,
+               struct FTW *ftwbuf) {
 
     // Check if the input file existing in the traversed path
     if (typeflag == FTW_F && strstr(filepath, filename) != NULL) {
 
-        // printf("File: %s\n", filename);
-        printf("\nFile: %s\n", filename);
-        // printf("Size: %ld bytes\n", sb->st_size);
-        printf("Size: %ld bytes\n", sb->st_size);
-        // printf("Date of Creation: %s\n", ctime(&sb->st_ctime));
-        printf("Date of Creation: %s", ctime(&sb->st_ctime));
-        printf("Permissions: %c%c%c%c%c%c%c%c%c%c\n",
-               (S_ISDIR(sb->st_mode)) ? 'd' : '-',
-               (sb->st_mode & S_IRUSR) ? 'r' : '-',
-               (sb->st_mode & S_IWUSR) ? 'w' : '-',
-               (sb->st_mode & S_IXUSR) ? 'x' : '-',
-               (sb->st_mode & S_IRGRP) ? 'r' : '-',
-               (sb->st_mode & S_IWGRP) ? 'w' : '-',
-               (sb->st_mode & S_IXGRP) ? 'x' : '-',
-               (sb->st_mode & S_IROTH) ? 'r' : '-',
-               (sb->st_mode & S_IWOTH) ? 'w' : '-',
-               (sb->st_mode & S_IXOTH) ? 'x' : '-');
-
+        // Format the strings and copy them into variables
+        sprintf(name_message, "\nFile: %s\n", filename);
+        sprintf(size_message, "Size: %lld bytes\n", sb->st_size);
+        sprintf(date_message, "Date of Creation: %s", ctime(&sb->st_ctime));
+        sprintf(permission_message,
+                 "Permissions: %c%c%c%c%c%c%c%c%c%c\n",
+                 (S_ISDIR(sb->st_mode)) ? 'd' : '-',
+                 (sb->st_mode & S_IRUSR) ? 'r' : '-',
+                 (sb->st_mode & S_IWUSR) ? 'w' : '-',
+                 (sb->st_mode & S_IXUSR) ? 'x' : '-',
+                 (sb->st_mode & S_IRGRP) ? 'r' : '-',
+                 (sb->st_mode & S_IWGRP) ? 'w' : '-',
+                 (sb->st_mode & S_IXGRP) ? 'x' : '-',
+                 (sb->st_mode & S_IROTH) ? 'r' : '-',
+                 (sb->st_mode & S_IWOTH) ? 'w' : '-',
+                 (sb->st_mode & S_IXOTH) ? 'x' : '-');
 
         // return 1 to make the nftw() function stop the traverse after the first occurrence
         return 1;
-    }
-    else
+    } else {
         return 0;
+    }
 }
 
 // Split each command of userInput into argv
@@ -327,7 +322,7 @@ int handle_w24fn_filename(int conn, char *message) {
     // Send termination message after sending all messages
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 
-    memset(filename, 0, sizeof(filename));
+    memset(filename, 0, strlen(filename));
     memset(size_message, 0, sizeof(size_message));
     memset(date_message, 0, sizeof(date_message));
     memset(permission_message, 0, sizeof(permission_message));
