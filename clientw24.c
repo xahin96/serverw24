@@ -20,10 +20,11 @@ void handle_dirlist_alpha(int fd) {
         memset(message, 0, sizeof(message)); // Clear message buffer
         int bytes_received = recv(fd, message, sizeof(message), 0);
         if (bytes_received > 0) {
-            printf("%s\n", message);
             if (strstr(message, "END_OF_MESSAGES") != NULL) {
                 end_of_messages_received = 1; // Set flag to true
+                continue;
             }
+            printf("%s\n", message);
         } else if (bytes_received == 0) {
             break; // Terminate loop when connection closed
         } else {
@@ -42,10 +43,11 @@ void handle_dirlist_time(int fd) {
         memset(message, 0, sizeof(message)); // Clear message buffer
         int bytes_received = recv(fd, message, sizeof(message), 0);
         if (bytes_received > 0) {
-            printf("%s\n", message);
             if (strstr(message, "END_OF_MESSAGES") != NULL) {
                 end_of_messages_received = 1; // Set flag to true
+                continue;
             }
+            printf("%s\n", message);
         } else if (bytes_received == 0) {
             break; // Terminate loop when connection closed
         } else {
@@ -64,10 +66,11 @@ void handle_w24fn_filename(int fd) {
         memset(message, 0, sizeof(message)); // Clear message buffer
         int bytes_received = recv(fd, message, sizeof(message), 0);
         if (bytes_received > 0) {
-            printf("%s\n", message);
             if (strstr(message, "END_OF_MESSAGES") != NULL) {
                 end_of_messages_received = 1; // Set flag to true
+                continue;
             }
+            printf("%s\n", message);
         } else if (bytes_received == 0) {
             break; // Terminate loop when connection closed
         } else {
@@ -270,8 +273,6 @@ void handle_w24fdb_before(int fd) {
 }
 
 int main() {
-    char *ipAddress = "127.0.0.1";   
-
     struct sockaddr_in serv;
     int fd;
     char message[100] = "";
