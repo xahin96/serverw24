@@ -334,12 +334,8 @@ void sendFile(int conn, char *filepath) {
     long file_size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    printf("file size from server: %ld \n", file_size);
-
     char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
     sprintf(file_size_str, "%ld", file_size);
-
-    printf("file size from server str: %s\n", file_size_str);
 
     send(conn, file_size_str, strlen(file_size_str), 0);
 
@@ -348,8 +344,6 @@ void sendFile(int conn, char *filepath) {
     size_t bytes_read;
     int i = 0;
     while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
-        printf("bytes found: %d \n", i = i+1);
-        printf("bytes size: %lu \n", sizeof(buffer));
         sleep_ms(100); // sleep for 1000 milliseconds (1 second)
         if (send(conn, buffer, bytes_read, 0) != bytes_read) {
             perror("send");
@@ -372,7 +366,6 @@ int combineFileNamefz ( char *filepath, char *filename ) {
 
     // Extract the directory path of the current filepath
     char *file_dir = dirname(filepath);
-    printf("path: %s\n", filepath);
 
     // This format is to archive all the files without their directory structure
     sprintf(allFileNamesfz, "%s -C \"%s\" \"%s\"", allFileNamesfz, file_dir, filename);
@@ -386,7 +379,6 @@ int checkSize ( const char *filepath,
                 int typeflag,
                 struct FTW *ftwbuf) {
 
-    printf("path: %s\n", filepath);
     char file_path[PATH_MAX];
     strcpy(file_path, filepath);
     // Check if the size of a file is as request
@@ -446,7 +438,6 @@ void handle_w24fz_size(int conn, char *message) {
             int error = 0;
             sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesfz);
 
-            printf("command = %s\n", command);
             // Execute the command using system()
             error = system(command);
 
@@ -498,7 +489,6 @@ int combineFileNameft ( char *filepath, char *filename ) {
 
     // Extract the directory path of the current filepath
     char *file_dir = dirname (filepath);
-    printf("path: %s\n", file_dir);
 
     // This format is to archive all the files without their directory structure
     sprintf(allFileNamesft, "%s -C \"%s\" \"%s\"", allFileNamesft, file_dir, filename);
@@ -518,7 +508,6 @@ int checkExt ( const char *filepath,
 
     // Check if the size of a file is as request
     if (typeflag == FTW_F && compare_extension(file_path, extensions) == 1 ) {
-        printf("%s\n", file_path + ftwbuf->base);
 
         // Check if the file is existing in allFileNames
         // If not, add its path and name into the allFileName
@@ -565,7 +554,6 @@ void handle_w24ft_ext(int conn, char *message) {
 
     // Traverse the home directory
     int searchResult = nftw(home_dir, checkExt, 20, FTW_PHYS);
-    printf("%d\n", searchResult);
 
     // Search successful with no errors during traversal
     if ( searchResult == 0 ){
@@ -581,7 +569,6 @@ void handle_w24ft_ext(int conn, char *message) {
             char command[100000];   // a string to store the command
             int error = 0;
             sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesft);
-            printf("command = %s\n", command);
 
             // Execute the command using system()
             error = system(command);
@@ -629,7 +616,6 @@ int combineFileNamefda ( char *filepath, char *filename ) {
 
     // This format is to archive all the files without their directory structure
     sprintf(allFileNamesfda, "%s -C \"%s\" \"%s\"", allFileNamesfda, file_dir, filename);
-    // printf("allFileNamesfda = %s\n", allFileNamesfda);
 
     // Return 1 to indicate successful completion
     return 1;
@@ -648,8 +634,6 @@ int checkDateAfter ( const char *filepath,
 
     // Check if the creation date of a file is larger than the start date input from client
     if (typeflag == FTW_F && strcmp(ctime, start_date) >= 0 ) {
-
-        printf("file_path: %s\n", file_path);
 
         // Check if the file is existing in allFileNamesfda
         // If not, add its path and name into the allFileName
@@ -689,7 +673,6 @@ void handle_w24fda_after(int conn, char *message) {
 
         // All files were found successfully
         if ( errorFLAGfda == 0 ) {
-            // printf("Search successful! All your requested files are showed above!\n\n");
 
             // Create the path of the TAR archive named temp.tar.gz in home directory
             char tar_filepath[PATH_MAX];
@@ -761,13 +744,8 @@ int checkDateBefore ( const char *filepath,
     char ctime[15];
     strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&sb->st_ctime));
 
-    printf("ctime = %s\n", ctime);
-    printf("end date = %s\n", end_date);
-
     // Check if the creation date of a file is as request
     if (typeflag == FTW_F && strcmp(ctime, end_date) <= 0 ) {
-
-        printf("file_path: %s\n ctime: %s\n\n", file_path + ftwbuf->base, ctime);
 
         // Check if the file is existing in allFileNamesfdb
         // If not, add its path and name into the allFileName
@@ -807,7 +785,6 @@ void handle_w24fdb_before ( int conn, char *message ) {
 
         // All files were found successfully
         if ( errorFLAGfdb == 0 ) {
-            // printf("Search successful! All your requested files are showed above!\n\n");
 
             // Create the path of the TAR archive named temp.tar.gz in home directory
             char tar_filepath[PATH_MAX];
