@@ -10,11 +10,8 @@
 #include <fcntl.h>
 #include <ftw.h>
 #include <ctype.h>
-#include <libgen.h>
-#include <err.h>
 #include <limits.h>
-#include <dirent.h>
-#include <errno.h>
+#include <sys/stat.h>
 
 
 #define BUFFER_SIZE 32768
@@ -116,7 +113,7 @@ int handle_dirlist_alpha(int conn) {
         send(conn, subdirs[i], strlen(subdirs[i]), 0);
 
         // Clear message buffer
-        memset(subdirs[i], 0, sizeof(subdirs[i]));
+        memset(subdirs[i], 0, strlen(subdirs[i]));
         free(subdirs[i]);
     }
 
@@ -316,7 +313,7 @@ int handle_w24fn_filename(int conn, char *message) {
     // Send termination message after sending all messages
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 
-    memset(filename, 0, sizeof(filename));
+    memset(filename, 0, strlen(filename));
     memset(size_message, 0, sizeof(size_message));
     memset(date_message, 0, sizeof(date_message));
     memset(permission_message, 0, sizeof(permission_message));
