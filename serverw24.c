@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <libgen.h>
 
 
 #define BUFFER_SIZE 32768
@@ -371,7 +372,7 @@ char allFileNamesfz[100000];      // store all the file paths and names for tar 
 int combineFileNamefz ( const char *filepath, const char *filename ) {
 
     // Extract the directory path of the current filepath
-    char *file_dir = dirname (filepath);
+    char *file_dir = dirname(filepath);
     printf("path: %s\n", filepath);
 
     // This format is to archive all the files without their directory structure
@@ -426,7 +427,7 @@ void handle_w24fz_size(int conn, char *message) {
     char *home_dir = "/home/song59/Desktop/asp";
 
     // initialize the string
-    *allFileNamesfz = NULL;
+//    *allFileNamesfz = NULL;
 
     // Traverse the home directory
     int searchResult = nftw(home_dir, checkSize, 20, FTW_PHYS);
@@ -561,7 +562,7 @@ void handle_w24ft_ext(int conn, char *message) {
     char *home_dir = "/home/song59/Desktop/asp";
 
     // initialize the string
-    *allFileNamesft = NULL;
+//    *allFileNamesft = NULL;
 
     // Traverse the home directory
     int searchResult = nftw(home_dir, checkExt, 20, FTW_PHYS);
