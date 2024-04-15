@@ -57,7 +57,6 @@ void handle_dirlist_alpha(int fd) {
                 end_of_messages_received = 1; // Set flag to true
                 continue;
             }
-            printf("%s\n", message);
         } else if (bytes_received == 0) {
             break; // Terminate loop when connection closed
         } else {
@@ -80,7 +79,6 @@ void handle_dirlist_time(int fd) {
                 end_of_messages_received = 1; // Set flag to true
                 continue;
             }
-            printf("%s\n", message);
         } else if (bytes_received == 0) {
             break; // Terminate loop when connection closed
         } else {
@@ -96,16 +94,21 @@ void handle_w24fn_filename(int fd) {
     int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
     while (!end_of_messages_received) {
         // Receive message from server
-        memset(message, 0, sizeof(message)); // Clear message buffer
+        memset(message, 0, 101); // Clear message buffer
         int bytes_received = recv(fd, message, sizeof(message), 0);
+        // printf("bytes_received %d\n", bytes_received);
+
         if (bytes_received > 0) {
             if (strstr(message, "END_OF_MESSAGES") != NULL) {
                 end_of_messages_received = 1; // Set flag to true
                 continue;
+            } else if (strstr(message, "NON_FILE")) {
+                printf("File not found\n");
+                continue;
             }
             printf("%s\n", message);
         } else if (bytes_received == 0) {
-            break; // Terminate loop when connection closed
+            break; // Terminate loop 4hen connection closed
         } else {
             // Handle the case where recv returns -1 (indicating error)
             perror("recv");
@@ -117,152 +120,171 @@ void handle_w24fn_filename(int fd) {
 
 void handle_w24fz_size(int fd) {
     // Receive file size string
-    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
-    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
-    printf("1 : %s\n", file_size_str);
+    char file_size_str[16]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, 17); // Clear message buffer
+    recv(fd, file_size_str, 16, 0);
+    if (strstr(file_size_str, "No file found") != NULL) {
+        printf("%s\n", file_size_str);
+    } else if (strstr(file_size_str, "Creation failed") != NULL) {
+        printf("%s\n", file_size_str);
+    } else {
+        // Convert file size string to long
+        long file_size = atol(file_size_str);
 
-    printf("file size from client str: %s \n", file_size_str);
+        printf("file size from client: %ld \n", file_size);
+        memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
 
-
-    // Convert file size string to long
-    long file_size = atol(file_size_str);
-
-    printf("file size from client: %ld \n", file_size);
-    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
-
-
-    // Open destination file for writing
-    FILE *file = fopen(DEST_FILE, "wb");
-    if (!file) {
-        perror("Error opening file");
-        exit(EXIT_FAILURE);
-    }
-
-    // Receive file data and write to destination file
-    size_t total_bytes_received = 0;
-    size_t bytes_received;
-    char buffer[BUFFER_SIZE];
-    while (total_bytes_received < file_size) {
-        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
-        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
-        if (bytes_received <= 0) {
-            perror("recv");
+        // Open destination file for writing
+        FILE *file = fopen(DEST_FILE, "wb");
+        if (!file) {
+            perror("Error opening file");
             exit(EXIT_FAILURE);
         }
-        total_bytes_received += bytes_received;
-        fwrite(buffer, 1, bytes_received, file);
+
+        // Receive file data and write to destination file
+        size_t total_bytes_received = 0;
+        size_t bytes_received;
+        char buffer[BUFFER_SIZE];
+        while (total_bytes_received < file_size) {
+            memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+            bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+            if (bytes_received <= 0) {
+                perror("recv");
+                exit(EXIT_FAILURE);
+            }
+            total_bytes_received += bytes_received;
+            fwrite(buffer, 1, bytes_received, file);
+        }
+        printf("File received successfully.\n");
+        fclose(file);
     }
-    printf("File received successfully.\n");
-    fclose(file);
 }
 
 void handle_w24ft_ext(int fd) {
     // Receive file size string
-    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
-    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    char file_size_str[13]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, 14); // Clear message buffer
+    recv(fd, file_size_str, 13, 0);
 
-    // Convert file size string to long
-    long file_size = atol(file_size_str);
+    if (strstr(file_size_str, "No file found") != NULL) {
+        // If no file found, print the message received from server
+        printf("%s\n", file_size_str);
+    } else {
+        // Convert file size string to long
+        long file_size = atol(file_size_str);
 
-    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
+        memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
 
-    // Open destination file for writing
-    FILE *file = fopen(DEST_FILE, "wb");
-    if (!file) {
-        perror("Error opening file");
-        exit(EXIT_FAILURE);
-    }
 
-    // Receive file data and write to destination file
-    size_t total_bytes_received = 0;
-    size_t bytes_received;
-    char buffer[BUFFER_SIZE];
-    while (total_bytes_received < file_size) {
-        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
-        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
-        if (bytes_received <= 0) {
-            perror("recv");
+        // Open destination file for writing
+        FILE *file = fopen(DEST_FILE, "wb");
+        if (!file) {
+            perror("Error opening file");
             exit(EXIT_FAILURE);
         }
-        total_bytes_received += bytes_received;
-        fwrite(buffer, 1, bytes_received, file);
+
+        // Receive file data and write to destination file
+        size_t total_bytes_received = 0;
+        size_t bytes_received;
+        char buffer[BUFFER_SIZE];
+        while (total_bytes_received < file_size) {
+            memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+            bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+            if (bytes_received <= 0) {
+                perror("recv");
+                exit(EXIT_FAILURE);
+            }
+            total_bytes_received += bytes_received;
+            fwrite(buffer, 1, bytes_received, file);
+        }
+
+        printf("File received successfully.\n");
+        fclose(file);
     }
-    printf("File received successfully.\n");
-    fclose(file);
 }
 
 void handle_w24fda_after(int fd) {
     // Receive file size string
-    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
-    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    char file_size_str[13]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, 14); // Clear message buffer
+    recv(fd, file_size_str, 13, 0);
 
-    // Convert file size string to long
-    long file_size = atol(file_size_str);
+    if (strstr(file_size_str, "No file found") != NULL) {
+        printf("%s\n", file_size_str);
+    } else {
+        // Convert file size string to long
+        long file_size = atol(file_size_str);
 
-    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
+        printf("file size from client: %ld \n", file_size);
+        memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
 
-    // Open destination file for writing
-    FILE *file = fopen(DEST_FILE, "wb");
-    if (!file) {
-        perror("Error opening file");
-        exit(EXIT_FAILURE);
-    }
-
-    // Receive file data and write to destination file
-    size_t total_bytes_received = 0;
-    size_t bytes_received;
-    char buffer[BUFFER_SIZE];
-    while (total_bytes_received < file_size) {
-        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
-        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
-        if (bytes_received <= 0) {
-            perror("recv");
+        // Open destination file for writing
+        FILE *file = fopen(DEST_FILE, "wb");
+        if (!file) {
+            perror("Error opening file");
             exit(EXIT_FAILURE);
         }
-        total_bytes_received += bytes_received;
-        fwrite(buffer, 1, bytes_received, file);
+
+        // Receive file data and write to destination file
+        size_t total_bytes_received = 0;
+        size_t bytes_received;
+        char buffer[BUFFER_SIZE];
+        while (total_bytes_received < file_size) {
+            memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+            bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+            if (bytes_received <= 0) {
+                perror("recv");
+                exit(EXIT_FAILURE);
+            }
+            total_bytes_received += bytes_received;
+            fwrite(buffer, 1, bytes_received, file);
+            printf("File received successfully.\n");
+
+            fclose(file);
+        }
     }
-    printf("File received successfully.\n");
-    fclose(file);
 }
 
 void handle_w24fdb_before(int fd) {
+    // w24fdb 2022-01-01
     // Receive file size string
-    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
-    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
-    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    char file_size_str[13]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, 20); // Clear message buffer
+    recv(fd, file_size_str, 13, 0);
+    if (strstr(file_size_str, "No file found") != NULL) {
+        // If no file found, print the message received from server
+        printf("%s\n", file_size_str);
+    } else {
+        // Convert file size string to long
+        long file_size = atol(file_size_str);
 
-    // Convert file size string to long
-    long file_size = atol(file_size_str);
+        memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
 
-    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
-
-    // Open destination file for writing
-    FILE *file = fopen(DEST_FILE, "wb");
-    if (!file) {
-        perror("Error opening file");
-        exit(EXIT_FAILURE);
-    }
-
-    // Receive file data and write to destination file
-    size_t total_bytes_received = 0;
-    size_t bytes_received;
-    char buffer[BUFFER_SIZE];
-    while (total_bytes_received < file_size) {
-        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
-        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
-        if (bytes_received <= 0) {
-            perror("recv");
+        // Open destination file for writing
+        FILE *file = fopen(DEST_FILE, "wb");
+        if (!file) {
+            perror("Error opening file");
             exit(EXIT_FAILURE);
         }
-        total_bytes_received += bytes_received;
-        fwrite(buffer, 1, bytes_received, file);
+
+        // Receive file data and write to destination file
+        size_t total_bytes_received = 0;
+        size_t bytes_received;
+        char buffer[BUFFER_SIZE];
+        while (total_bytes_received < file_size) {
+            memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+            bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+            if (bytes_received <= 0) {
+                perror("recv");
+                exit(EXIT_FAILURE);
+            }
+            total_bytes_received += bytes_received;
+            fwrite(buffer, 1, bytes_received, file);
+        }
+
+        printf("File received successfully.\n");
+        fclose(file);
     }
-    printf("File received successfully.\n");
-    fclose(file);
 }
 
 bool is_leap_year(int year) {
@@ -342,7 +364,7 @@ int main() {
                     exit(EXIT_FAILURE);
                 }
             } else {
-                // Normal message received from the server
+                 // Normal message received from the server
                 printf("Server: %s\n", message);
             }
             memset(&message, 0, strlen(message)); // Clear message buffer
