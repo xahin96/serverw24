@@ -7,52 +7,12 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 
-#ifdef __APPLE__
-#define INTERFACE_NAME "en0" // Interface name for macOS
-#elif __linux__
-#define WLAN_INTERFACE_PREFIX "wlan" // Interface name prefix for Linux Wi-Fi
-#define ETH_INTERFACE_PREFIX "eth"   // Interface name prefix for Linux Ethernet
-#else
-#error "Unsupported OS"
-#endif
+#define BUFFER_SIZE 32768
 
-char *getIPAddress() {
-    struct ifaddrs *ifap, *ifa;
-    struct sockaddr_in *sa;
-    char *ipAddress = NULL;
 
-    if (getifaddrs(&ifap) == -1) {
-        perror("getifaddrs");
-        exit(EXIT_FAILURE);
-    }
+#define DEST_FILE "./temp.tar.gz"
 
-#ifdef __APPLE__
-    for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-            sa = (struct sockaddr_in *) ifa->ifa_addr;
-            if (strcmp(ifa->ifa_name, INTERFACE_NAME) == 0) {
-                ipAddress = strdup(inet_ntoa(sa->sin_addr));
-                break;
-            }
-        }
-    }
-#elif __linux__
-    for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-            sa = (struct sockaddr_in *) ifa->ifa_addr;
-            if (strstr(ifa->ifa_name, WLAN_INTERFACE_PREFIX) != NULL || strstr(ifa->ifa_name, ETH_INTERFACE_PREFIX) != NULL) {
-                ipAddress = strdup(inet_ntoa(sa->sin_addr));
-                break;
-            }
-        }
-    }
-#endif
-
-    freeifaddrs(ifap);
-    return ipAddress;
-}
-
-void handle_dirlist_all(int fd) {
+void handle_dirlist_alpha(int fd) {
     char message[100] = "";
     int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
     while (!end_of_messages_received) {
@@ -60,10 +20,11 @@ void handle_dirlist_all(int fd) {
         memset(message, 0, sizeof(message)); // Clear message buffer
         int bytes_received = recv(fd, message, sizeof(message), 0);
         if (bytes_received > 0) {
-            printf("%s\n", message);
             if (strstr(message, "END_OF_MESSAGES") != NULL) {
                 end_of_messages_received = 1; // Set flag to true
+                continue;
             }
+            printf("%s\n", message);
         } else if (bytes_received == 0) {
             break; // Terminate loop when connection closed
         } else {
@@ -74,8 +35,244 @@ void handle_dirlist_all(int fd) {
     }
 }
 
+void handle_dirlist_time(int fd) {
+    char message[100] = "";
+    int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
+    while (!end_of_messages_received) {
+        // Receive message from server
+        memset(message, 0, sizeof(message)); // Clear message buffer
+        int bytes_received = recv(fd, message, sizeof(message), 0);
+        if (bytes_received > 0) {
+            if (strstr(message, "END_OF_MESSAGES") != NULL) {
+                end_of_messages_received = 1; // Set flag to true
+                continue;
+            }
+            printf("%s\n", message);
+        } else if (bytes_received == 0) {
+            break; // Terminate loop when connection closed
+        } else {
+            // Handle the case where recv returns -1 (indicating error)
+            perror("recv");
+            break;
+        }
+    }
+}
+
+void handle_w24fn_filename(int fd) {
+    char message[100] = "";
+    int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
+    while (!end_of_messages_received) {
+        // Receive message from server
+        memset(message, 0, sizeof(message)); // Clear message buffer
+        int bytes_received = recv(fd, message, sizeof(message), 0);
+        if (bytes_received > 0) {
+            if (strstr(message, "END_OF_MESSAGES") != NULL) {
+                end_of_messages_received = 1; // Set flag to true
+                continue;
+            }
+            printf("%s\n", message);
+        } else if (bytes_received == 0) {
+            break; // Terminate loop when connection closed
+        } else {
+            // Handle the case where recv returns -1 (indicating error)
+            perror("recv");
+            break;
+        }
+    }
+}
+
+
+void handle_w24fz_size(int fd) {
+    // Receive file size string
+    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    printf("1 : %s\n", file_size_str);
+
+    printf("file size from client str: %s \n", file_size_str);
+
+
+    // Convert file size string to long
+    long file_size = atol(file_size_str);
+
+    printf("file size from client: %ld \n", file_size);
+    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
+
+
+    // Open destination file for writing
+    FILE *file = fopen(DEST_FILE, "wb");
+    if (!file) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive file data and write to destination file
+    size_t total_bytes_received = 0;
+    size_t bytes_received;
+    char buffer[BUFFER_SIZE];
+    printf(" globalbuffer : %s\n", buffer);
+    while (total_bytes_received < file_size) {
+        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+        printf("sizeof(buffer) : %d\n", sizeof(buffer));
+        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+        printf("bytes_received : %d\n", bytes_received);
+        printf("buffer : %s\n", buffer);
+        if (bytes_received <= 0) {
+            perror("recv");
+            exit(EXIT_FAILURE);
+        }
+        total_bytes_received += bytes_received;
+        printf("total_bytes_received: %d\n", total_bytes_received);
+        fwrite(buffer, 1, bytes_received, file);
+    }
+
+    printf("File received successfully.\n");
+    fclose(file);
+}
+
+void handle_w24ft_ext(int fd) {
+    // Receive file size string
+    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+    printf("1 : %s\n", file_size_str);
+
+    printf("file size from client str: %s \n", file_size_str);
+
+
+    // Convert file size string to long
+    long file_size = atol(file_size_str);
+
+    printf("file size from client: %ld \n", file_size);
+    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
+
+
+    // Open destination file for writing
+    FILE *file = fopen(DEST_FILE, "wb");
+    if (!file) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive file data and write to destination file
+    size_t total_bytes_received = 0;
+    size_t bytes_received;
+    char buffer[BUFFER_SIZE];
+    printf(" globalbuffer : %s\n", buffer);
+    while (total_bytes_received < file_size) {
+        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+        printf("sizeof(buffer) : %d\n", sizeof(buffer));
+        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+        printf("bytes_received : %d\n", bytes_received);
+        printf("buffer : %s\n", buffer);
+        if (bytes_received <= 0) {
+            perror("recv");
+            exit(EXIT_FAILURE);
+        }
+        total_bytes_received += bytes_received;
+        printf("total_bytes_received: %d\n", total_bytes_received);
+        fwrite(buffer, 1, bytes_received, file);
+    }
+
+    printf("File received successfully.\n");
+    fclose(file);
+}
+
+void handle_w24fda_after(int fd) {
+    // Receive file size string
+    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+
+    printf("file size from client str: %s \n", file_size_str);
+
+
+    // Convert file size string to long
+    long file_size = atol(file_size_str);
+
+    printf("file size from client: %ld \n", file_size);
+    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
+
+
+    // Open destination file for writing
+    FILE *file = fopen(DEST_FILE, "wb");
+    if (!file) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive file data and write to destination file
+    size_t total_bytes_received = 0;
+    size_t bytes_received;
+    char buffer[BUFFER_SIZE];
+    printf(" globalbuffer : %s\n", buffer);
+    while (total_bytes_received < file_size) {
+        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+        printf("sizeof(buffer) : %d\n", sizeof(buffer));
+        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+        printf("bytes_received : %d\n", bytes_received);
+        printf("buffer : %s\n", buffer);
+        if (bytes_received <= 0) {
+            perror("recv");
+            exit(EXIT_FAILURE);
+        }
+        total_bytes_received += bytes_received;
+        printf("total_bytes_received: %d\n", total_bytes_received);
+        fwrite(buffer, 1, bytes_received, file);
+    }
+
+    printf("File received successfully.\n");
+    fclose(file);
+}
+
+void handle_w24fdb_before(int fd) {
+    // Receive file size string
+    char file_size_str[20]; // Assuming a maximum of 20 digits for the file size
+    memset(file_size_str, 0, strlen(file_size_str)); // Clear message buffer
+    recv(fd, file_size_str, sizeof(file_size_str), 0);
+
+    printf("file size from client str: %s \n", file_size_str);
+
+
+    // Convert file size string to long
+    long file_size = atol(file_size_str);
+
+    printf("file size from client: %ld \n", file_size);
+    memset(file_size_str, 0, sizeof(file_size_str)); // Clear message buffer
+
+
+    // Open destination file for writing
+    FILE *file = fopen(DEST_FILE, "wb");
+    if (!file) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive file data and write to destination file
+    size_t total_bytes_received = 0;
+    size_t bytes_received;
+    char buffer[BUFFER_SIZE];
+    printf(" globalbuffer : %s\n", buffer);
+    while (total_bytes_received < file_size) {
+        memset(buffer, 0, sizeof(buffer)); // Clear message buffer
+        printf("sizeof(buffer) : %d\n", sizeof(buffer));
+        bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+        printf("bytes_received : %d\n", bytes_received);
+        printf("buffer : %s\n", buffer);
+        if (bytes_received <= 0) {
+            perror("recv");
+            exit(EXIT_FAILURE);
+        }
+        total_bytes_received += bytes_received;
+        printf("total_bytes_received: %d\n", total_bytes_received);
+        fwrite(buffer, 1, bytes_received, file);
+    }
+
+    printf("File received successfully.\n");
+    fclose(file);
+}
+
 int main() {
-    char *ipAddress = getIPAddress();
     struct sockaddr_in serv;
     int fd;
     char message[100] = "";
@@ -88,8 +285,8 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9050);
-    if (inet_pton(AF_INET, ipAddress, &serv.sin_addr) <= 0) {
+    serv.sin_port = htons(9055);
+    if (inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
     }
@@ -119,17 +316,36 @@ int main() {
                 // Normal message received from the server
                 printf("Server: %s\n", message);
             }
-            memset(message, 0, sizeof(message)); // Clear message buffer
+            memset(&message, 0, strlen(message)); // Clear message buffer
         }
     }
 
     while (1) {
+
         // Send message to server
         printf("clientw24$ ");
         fgets(message, sizeof(message), stdin);
         if (strstr(message, "dirlist -a") != NULL) {
             send(fd, message, strlen(message), 0);
-            handle_dirlist_all(fd);
+            handle_dirlist_alpha(fd);
+        } else if (strstr(message, "dirlist -t") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_dirlist_time(fd);
+        } else if (strstr(message, "w24fn") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_w24fn_filename(fd);
+        } else if (strstr(message, "w24fz") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_w24fz_size(fd);
+        } else if (strstr(message, "w24ft") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_w24ft_ext(fd);
+        } else if (strstr(message, "w24fda") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_w24fda_after(fd);
+        } else if (strstr(message, "w24fdb") != NULL) {
+            send(fd, message, strlen(message), 0);
+            handle_w24fdb_before(fd);
         } else if (strncmp(message, "quitc", 5) == 0) {
             break;
         } else {
