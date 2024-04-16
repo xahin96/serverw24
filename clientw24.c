@@ -254,6 +254,7 @@ void handle_w24fda_after(int fd) {
     }
 }
 
+
 void handle_w24fdb_before(int fd) {
     // w24fdb 2022-01-01
     // Receive file size string
@@ -280,6 +281,7 @@ void handle_w24fdb_before(int fd) {
         size_t total_bytes_received = 0;
         size_t bytes_received;
         char buffer[BUFFER_SIZE];
+        // read and receive from until
         while (total_bytes_received < file_size) {
             memset(buffer, 0, sizeof(buffer)); // Clear message buffer
             bytes_received = recv(fd, buffer, sizeof(buffer), 0);
@@ -296,10 +298,13 @@ void handle_w24fdb_before(int fd) {
     }
 }
 
+// utility method - calculate leap year
 bool is_leap_year(int year) {
     return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
 }
 
+
+// utility method - cehcking if a string is valid number or not
 bool isNumber(char *str) {
     char number[255];
     strcpy(number, str);
@@ -311,39 +316,48 @@ bool isNumber(char *str) {
         }
         number_ptr++;
     }
-
     return true;
 }
 
+
+// utility method - date validator method
 bool validate_date(char **specific_command) {
+    // receiving the date string from message
     const char *date_str = specific_command[1];
 
     char date[255];
+    // creating a duplicate
     strcpy(date, date_str);
 
     char *date_ptr = date;
+    // checking if new line exists
     while (*date_ptr != '\n') {
+        // checking if the date is valid numbers
         if (!isdigit(*date_ptr) && *date_ptr != '-') {
             return false;
         }
         date_ptr++;
     }
 
+    // checking date format
     int year, month, day;
     if (sscanf(date_str, "%d-%d-%d", &year, &month, &day) != 3)
     {
         return false;
     }
 
+    // checking year limit
     if (year < 999 || year > 9999){
         return false;
     }
 
+    // checking month limit
     if (month < 1 || month > 12)
     {
         return false;
     }
 
+    // checking leap year and number of days in a month
     int days_in_month;
     switch (month) {
         case 2:
@@ -356,11 +370,11 @@ bool validate_date(char **specific_command) {
             days_in_month = 31;
     }
 
+    // checking day validity
     if (day < 1 || day > days_in_month)
     {
         return false;
     }
-
 
     return true;
 }
