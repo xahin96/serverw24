@@ -380,7 +380,7 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9059);
+    serv.sin_port = htons(9050);
     if (inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
@@ -408,7 +408,7 @@ int main() {
                     exit(EXIT_FAILURE);
                 }
             } else {
-                 // Normal message received from the server
+                // Normal message received from the server
                 printf("Server: %s\n", message);
             }
             memset(&message, 0, strlen(message)); // Clear message buffer
@@ -497,9 +497,14 @@ int main() {
                 printf("Invalid 'w24fdb' command. Command structure:\nw24fdb [Date(yyyy-mm-dd)]\n\n");
                 free(specific_command);
             }
-        } else if (strncmp(message, "quitc", 5) == 0) {
-            // TODO: must send quitc to server
-            break;
+        } else if (strstr(message, "quitc") != NULL) {
+            if (strlen(message) == 5) {
+                send(fd, message, strlen(message), 0);
+                close(fd);
+                break;
+            } else {
+                printf("Invalid command.\n");
+            }
         } else {
             printf("Invalid command\n");
         }
