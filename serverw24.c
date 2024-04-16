@@ -901,6 +901,10 @@ void handle_w24fdb_before ( int conn, char *message ) {
     }
 }
 
+void handle_quitc( int conn, char *message ) {
+    printf("Client disconnected!\n");
+}
+
 
 // Function to handle client requests
 void crequest(int conn, int server_port) {
@@ -947,6 +951,7 @@ void crequest(int conn, int server_port) {
 
             // Check for exit condition
             if (strncmp(message, "quitc", 5) == 0) {
+                handle_quitc(conn, message);
                 break;
             }
 
