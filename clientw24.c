@@ -378,7 +378,7 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9050);
+    serv.sin_port = htons(9059);
     if (inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
