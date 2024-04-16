@@ -21,7 +21,7 @@
 #define PORT_MIRROR2 9052
 
 // Home directory
-char *home_dir = "/home/song59";
+char *home_dir = "/home/song59/Desktop/asp";
 
 
 int total_client = 0;
@@ -940,7 +940,7 @@ void crequest(int conn, int server_port) {
 
             if (strstr(message, "w24ft") != NULL) {
                 handle_w24ft_ext(conn, message);
-                sleep(1);
+                sleep_ms(100);
                 memset(message, 0, 101); // Clear message buffer
             }
 
