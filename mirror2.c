@@ -65,7 +65,7 @@ char *my_strdup(const char *str) {
 }
 
 // Sleep
-void sleep_ms(int milliseconds) {
+void sleep_in_ms(int milliseconds) {
     struct timespec ts;
     ts.tv_sec = milliseconds / 1000;
     ts.tv_nsec = (milliseconds % 1000) * 1000000;
