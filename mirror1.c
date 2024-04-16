@@ -171,7 +171,7 @@ int handle_dirlist_alpha(int conn) {
     char message[200];
     sprintf(message, "There are %d subdirectories:\n", num_subdir);
     send(conn, message, strlen(message), 0);
-    
+
 // Send the list of subdirectories to client
     for (int i = 0; i < num_subdir; i++) {
         sleep_ms(100); // sleep for 1000 milliseconds (1 second)
@@ -182,7 +182,7 @@ int handle_dirlist_alpha(int conn) {
 // free the memory of each element in subdirs list
         free(subdirs[i]);
     }
-    
+
     // Send termination message after sending all messages
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 
@@ -234,7 +234,7 @@ char** getSubdirectories_time(int *count) {
 
 // Handle "dirlist -t" command 
 int handle_dirlist_time(int conn) {
-    
+
     // Number of the subdirectories
     int num_subdir;
 
@@ -259,8 +259,8 @@ int handle_dirlist_time(int conn) {
         memset(subdirs[i], 0, strlen(subdirs[i]));
         // free the memory of each element in subdirs list
         free(subdirs[i]);
-            }
-    
+    }
+
     // Send termination message after sending all messages
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 
@@ -272,9 +272,9 @@ int handle_dirlist_time(int conn) {
 
 // nftw() callback function to look for the first occurrence of the input file
 int checkFirst(const char *filepath,
-                 const struct stat *sb,
-                 int typeflag,
-                 struct FTW *ftwbuf) {
+               const struct stat *sb,
+               int typeflag,
+               struct FTW *ftwbuf) {
 
     // printf("filepath-> %s\n", filepath);
     // printf("filename-> %s\n", filename);
@@ -297,22 +297,22 @@ int checkFirst(const char *filepath,
         sprintf(permission_message,
                 "Permissions: %c%c%c%c%c%c%c%c%c%c\n",
                 (S_ISDIR(sb->st_mode)) ? 'd' : '-',
-               (sb->st_mode & S_IRUSR) ? 'r' : '-',
-               (sb->st_mode & S_IWUSR) ? 'w' : '-',
-               (sb->st_mode & S_IXUSR) ? 'x' : '-',
-               (sb->st_mode & S_IRGRP) ? 'r' : '-',
-               (sb->st_mode & S_IWGRP) ? 'w' : '-',
-               (sb->st_mode & S_IXGRP) ? 'x' : '-',
-               (sb->st_mode & S_IROTH) ? 'r' : '-',
-               (sb->st_mode & S_IWOTH) ? 'w' : '-',
-               (sb->st_mode & S_IXOTH) ? 'x' : '-');
+                (sb->st_mode & S_IRUSR) ? 'r' : '-',
+                (sb->st_mode & S_IWUSR) ? 'w' : '-',
+                (sb->st_mode & S_IXUSR) ? 'x' : '-',
+                (sb->st_mode & S_IRGRP) ? 'r' : '-',
+                (sb->st_mode & S_IWGRP) ? 'w' : '-',
+                (sb->st_mode & S_IXGRP) ? 'x' : '-',
+                (sb->st_mode & S_IROTH) ? 'r' : '-',
+                (sb->st_mode & S_IWOTH) ? 'w' : '-',
+                (sb->st_mode & S_IXOTH) ? 'x' : '-');
 
 
         // return 1 to make the nftw() function stop the traverse after the first occurrence
         return 1;
     } else {
         return 0;
-}
+    }
 }
 
 // Handle "w24fn" command
@@ -325,13 +325,9 @@ int handle_w24fn_filename(int conn, char *message) {
 
 // The second argument is the filename
     filename = argv[1];
-    
+
     // Traverse all files in the home directory
     int sr = nftw(home_dir, checkFirst, 20, FTW_NS);
-printf("ok1\n");
-
-    printf("searchResult = %d\n", sr);
-            printf("ok2\n");
 
 
     // nftw() returns 1 if the callback function checkFirst() returns 1, which means the file has been found
@@ -343,7 +339,7 @@ printf("ok1\n");
 
         send(conn, size_message, strlen(size_message), 0);
         sleep_ms(100); // sleep for 1000 milliseconds (1 second)
-        
+
         send(conn, date_message, strlen(date_message), 0);
         sleep_ms(100); // sleep for 1000 milliseconds (1 second)
 
@@ -351,7 +347,7 @@ printf("ok1\n");
         sleep_ms(100); // sleep for 1000 milliseconds (1 second)
     }
 // checkFirst() function returns 0 when the tree is exhausted, which means the traversal was performed but the file was not found
-    // In this case, nftw() also returns 0 to searchResult
+        // In this case, nftw() also returns 0 to searchResult
     else {
         send(conn, "NON_FILE", strlen("NON_FILE"), 0);
         sleep_ms(100); // sleep for 1000 milliseconds (1 second)
@@ -418,7 +414,6 @@ int combineFileNamefz ( char *filepath, char *filename ) {
 
     // Extract the directory path of the current filepath
     char *file_dir = dirname(file_path);
-    printf("path: %s\n", file_path);
 
     // This format is to archive all the files without their directory structure
     sprintf(allFileNamesfz, "%s -C \"%s\" \"%s\"", allFileNamesfz, file_dir, filename);
@@ -502,15 +497,15 @@ void handle_w24fz_size(int conn, char *message) {
                 sendFile(conn, tar_filepath);
             }
 
-            // Otherwise print and send a failure message
+                // Otherwise print and send a failure message
             else {
-                send(conn, "Creation failed", strlen("Creation failed"), 0);
+                send(conn, "No file found", strlen("No file found"), 0);
                 sleep_ms(200); // sleep for 1000 milliseconds (1 second)
-                printf("TAR file created unsuccessful!\n");
+                printf("TAR file creation unsuccessful!\n");
             }
         }
 
-        // The value of errorFLAGfz will remain as -1 if there is no such file in the source directory
+            // The value of errorFLAGfz will remain as -1 if there is no such file in the source directory
         else if ( errorFLAGfz == -1 ) {
             send(conn, "No file found", strlen("No file found"), 0);
             sleep_ms(200); // sleep for 200 milliseconds
@@ -518,7 +513,7 @@ void handle_w24fz_size(int conn, char *message) {
         }
     }
 
-    // When it detects an error and has not performed the traversal
+        // When it detects an error and has not performed the traversal
     else {
         send(conn, "No file found", strlen("No file found"), 0);
         sleep_ms(200); // sleep for 200 milliseconds
@@ -580,7 +575,7 @@ int checkExt ( const char *filepath,
         return 0;
     }
 
-    // If not existing, it returns 0 to continue the traverse
+        // If not existing, it returns 0 to continue the traverse
     else{
         return 0;
     }
@@ -607,7 +602,7 @@ void handle_w24ft_ext(int conn, char *message) {
     }
 
     // initialize the string
-   *allFileNamesft = '\0';
+    *allFileNamesft = '\0';
 
     // Traverse the home directory
     int searchResult = nftw(home_dir, checkExt, 20, FTW_PHYS);
@@ -632,20 +627,20 @@ void handle_w24ft_ext(int conn, char *message) {
 
             // If the TAR archive was created successfully, print successful message
             if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
-                printf("TAR file created successful! The path is: \n%s\n", tar_filepath);
+                printf("TAR file created successfully! The path is: \n%s\n", tar_filepath);
                 sendFile(conn, tar_filepath);
             }
 
-            // Print and send a failure message if the TAR was not created
+                // Print and send a failure message if the TAR was not created
             else {
-                send(conn, "TAR file created unsuccessful!", strlen("TAR file created unsuccessful!"), 0);
+                send(conn, "No file found", strlen("No file found"), 0);
                 sleep_ms(200); // sleep for 200 milliseconds
-                printf("TAR file created unsuccessful!\n");
+                printf("TAR file creation unsuccessful!\n");
             }
 
         }
 
-        // The value of errorFLAG will remain as -1 if there is no such file in the source directory
+            // The value of errorFLAG will remain as -1 if there is no such file in the source directory
         else if ( errorFLAGft == -1 ) {
             send(conn, "No file found", strlen("No file found"), 0);
             sleep_ms(200); // sleep for 200 milliseconds
@@ -653,9 +648,9 @@ void handle_w24ft_ext(int conn, char *message) {
         }
     }
 
-    // nftw() returns -1 to searchResult if it detects an error and has not performed the traversal
+        // nftw() returns -1 to searchResult if it detects an error and has not performed the traversal
     else if (searchResult == -1) {
-        send(conn, "Error Searching", strlen("Error Searching"), 0);
+        send(conn, "No file found", strlen("No file found"), 0);
         sleep_ms(200); // sleep for 200 milliseconds
         printf("Error Searching\n");
     }
@@ -753,20 +748,20 @@ void handle_w24fda_after(int conn, char *message) {
 
             // If the TAR archive was created successfully, send the file
             if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
-                printf("TAR file created successful! The path is: \n%s\n", tar_filepath);
+                printf("TAR file created successfully! The path is: \n%s\n", tar_filepath);
                 // Send the file to the client
                 sendFile(conn, tar_filepath);
             }
 
-            // print and send a failure message if the TAR was not created
+                // print and send a failure message if the TAR was not created
             else {
-                send(conn, "TAR file created unsuccessful!", strlen("\nTAR file created unsuccessful!"), 0);
+                send(conn, "No file found", strlen("No file found"), 0);
                 sleep_ms(200); // sleep for 200 milliseconds
-                printf("TAR file created unsuccessful!\n");
+                printf("TAR file creation unsuccessful!\n");
             }
         }
 
-        // The value of errorFLAGfda will remain as -1 if there is no such file in the source directory
+            // The value of errorFLAGfda will remain as -1 if there is no such file in the source directory
         else if ( errorFLAGfda == -1 ) {
             send(conn, "No file found", strlen("No file found"), 0);
             sleep_ms(200); // sleep for 200 milliseconds
@@ -774,9 +769,9 @@ void handle_w24fda_after(int conn, char *message) {
         }
     }
 
-    // nftw() returns -1 to searchResult when it detects an error and has not performed the traversal
+        // nftw() returns -1 to searchResult when it detects an error and has not performed the traversal
     else if (searchResult == -1){
-        send(conn, "Error Searching", strlen("Error Searching"), 0);
+        send(conn, "No file found", strlen("No file found"), 0);
         sleep_ms(200); // sleep for 200 milliseconds
         printf("Error Searching\n");
     }
@@ -830,7 +825,7 @@ int checkDateBefore ( const char *filepath,
         return 0;
     }
 
-    // If not existing, it returns 0 to continue the traverse
+        // If not existing, it returns 0 to continue the traverse
     else
         return 0;
 }
@@ -871,15 +866,15 @@ void handle_w24fdb_before ( int conn, char *message ) {
 
             // If the TAR archive was created successfully, print successful message
             if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
-                printf("TAR file created successful! The path is: \n%s\n", tar_filepath);
+                printf("TAR file created successfully! The path is: \n%s\n", tar_filepath);
                 sendFile(conn, tar_filepath);
             }
 
-            // Print and send a failure message if the TAR file was not created
+                // Print and send a failure message if the TAR file was not created
             else {
-                send(conn, "TAR file created unsuccessful!", strlen("TAR file created unsuccessful!"), 0);
+                send(conn, "No file found", strlen("No file found"), 0);
                 sleep_ms(200); // sleep for 200 milliseconds
-                printf("TAR file created unsuccessful!\n");
+                printf("TAR file creation unsuccessful!\n");
             }
         }
 
@@ -893,10 +888,14 @@ void handle_w24fdb_before ( int conn, char *message ) {
 
         // nftw() returns -1 to searchResult when it detects an error and has not performed the traversal
     else if (searchResult == -1) {
-        send(conn, "Error Searching", strlen("Error Searching"), 0);
+        send(conn, "No file found", strlen("No file found"), 0);
         sleep_ms(200); // sleep for 200 milliseconds
         printf("Error Searching\n");
     }
+}
+
+void handle_quitc( int conn, char *message ) {
+    printf("Client disconnected!\n");
 }
 
 
@@ -910,7 +909,7 @@ void crequest(int conn) {
         if (recv(conn, message, sizeof(message), 0) > 0) {
             // Trim the white space after the message
             trim_trailing_whitespace(message);
-            
+
             printf("Client message for mirror 1: %s\n", message);
 
             if (strstr(message, "dirlist -a") != NULL) {
@@ -945,6 +944,7 @@ void crequest(int conn) {
 
             // Check for exit condition
             if (strncmp(message, "quitc", 5) == 0) {
+                handle_quitc(conn, message);
                 break;
             }
         }

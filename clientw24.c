@@ -137,8 +137,6 @@ void handle_w24fz_size(int fd) {
     recv(fd, file_size_str, 16, 0);
     if (strstr(file_size_str, "No file found") != NULL) {
         printf("%s\n", file_size_str);
-    } else if (strstr(file_size_str, "Creation failed") != NULL) {
-        printf("%s\n", file_size_str);
     } else {
         // Convert file size string to long
         long file_size = atol(file_size_str);
