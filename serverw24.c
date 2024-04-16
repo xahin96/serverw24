@@ -16,7 +16,7 @@
 
 
 #define BUFFER_SIZE 32768
-#define PORT_SERVER 9055
+#define PORT_SERVER 9059
 #define PORT_MIRROR1 9051
 #define PORT_MIRROR2 9052
 
@@ -26,9 +26,6 @@ char *home_dir = "/home/song59/Desktop/asp";
 
 int total_client = 0;
 int server_index = 0;
-
-// Number of subdirectories for "dirlist -t" feature
-static int num_dirs_t = 0;
 
 /* Variables for "w24fn" feature */
 char *filename;         // store the filename in the w24fn command received from client
@@ -197,83 +194,79 @@ int handle_dirlist_alpha(int conn) {
 
 /* functions for "dirlist -t" */
 
-// Define the struct type DirInfo
-typedef struct {
-    char name[PATH_MAX];
-    time_t created_time;
-} DirInfo;
+char** getSubdirectories_time(int *count) {
+    FILE *fp;   // file pointer
+    char dir_name[1035];    // name of a directory
+    char **subdirs = NULL;  // array of pointers referring to all the subdirectories
+    int subdir_count = 0;   // number of subdirectories, initialized as 0
 
-// Point to the first element of the directory struct array
-static DirInfo *dir_list = NULL;
-
-// Compare the creation time of directories a and b
-// Will be called by qsort() function
-int compare_dirinfo(const void *a, const void *b) {
-    return ((DirInfo *)a)->created_time - ((DirInfo *)b)->created_time;
-}
-
-// Callback function of nftw() to process each directory in the traverse
-static int process_dirs_t(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
-
-    // Check if the current node is a directory and not the root directory
-    if (typeflag == FTW_D && strcmp(fpath, home_dir) != 0) {
-
-        // increase the number of directories by 1
-        num_dirs_t++;
-
-        // Add more memory in the array
-        dir_list = realloc(dir_list, num_dirs_t * sizeof(DirInfo));
-        if (!dir_list) {
-            fprintf(stderr, "Memory allocation error.\n");
-            exit(EXIT_FAILURE);
-        }
-
-        // store the information of curent directory in the struct array
-        strcpy(dir_list[num_dirs_t - 1].name, fpath + ftwbuf->base);
-        dir_list[num_dirs_t - 1].created_time = sb->st_ctime;
+    // Run the shell command and its output will be available for reading from 'fp'
+    // This command lists all the directories in the order of creation time and strips their full path with only directory name left
+    fp = popen("ls -1 -d -tr --time=birth $HOME/*/ | xargs -n 1 basename", "r");
+    if (fp == NULL) {
+        fprintf(stderr, "Failed to run command\n");
+        return NULL;
     }
-    return 0;
+
+    // Read the output from 'fp' line by line
+    while (fgets(dir_name, sizeof(dir_name)-1, fp) != NULL) {
+        // Remove newline character
+        dir_name[strcspn(dir_name, "\n")] = 0;
+
+        // Change the size of the array of subdirectories
+        subdirs = realloc(subdirs, (subdir_count + 1) * sizeof(char *));
+        // Allocate memory for a new element of the subdirectories array
+        subdirs[subdir_count] = malloc(strlen(dir_name) + 1);
+
+        // Copy new subdirectory name read from 'fp' into the current array element
+        strcpy(subdirs[subdir_count], dir_name);
+        subdir_count++;
+    }
+
+    // Close the pipe and get the return code
+    int ret = pclose(fp);
+    if (ret == -1) {
+        fprintf(stderr, "Error while closing pipe\n");
+        return NULL;
+    }
+
+    *count = subdir_count;
+    return subdirs;
 }
 
 // Handle "dirlist -t" command
 int handle_dirlist_time(int conn) {
 
-    if (!home_dir) {
-        fprintf(stderr, "Could not get HOME environment variable.\n");
-        exit(EXIT_FAILURE);
-    }
+    // Number of the subdirectories
+    int num_subdir;
 
-    // Traverse the home directory tree
-    int flags = FTW_PHYS; // Use physical file type, do not follow symbolic links
-    if (nftw(home_dir, process_dirs_t, 10, flags) == -1) {
-        perror("nftw");
-        exit(EXIT_FAILURE);
+    // Get the list of subdirectories in the alphabetical order
+    char **subdirs = getSubdirectories_time(&num_subdir);
+    if (subdirs == NULL) {
+        fprintf(stderr, "Error: Failed to get subdirectories.\n");
+        return EXIT_FAILURE;
     }
-
-    // Sort the directories by creation time
-    qsort(dir_list, num_dirs_t, sizeof(DirInfo), compare_dirinfo);
 
     // Send the number of subdirectories to client
     char message[200];
-    sprintf(message, "There are %d subdirectories:\n", num_dirs_t);
+    sprintf(message, "There are %d subdirectories:\n", num_subdir);
     send(conn, message, strlen(message), 0);
 
-    // Send the list of directories to the client
-    for (int i = 0; i < num_dirs_t; i++) {
+    // Send the list of subdirectories to client
+    for (int i = 0; i < num_subdir; i++) {
         sleep_ms(100); // sleep for 1000 milliseconds (1 second)
-        send(conn, dir_list[i].name, strlen(dir_list[i].name), 0);
+        send(conn, subdirs[i], strlen(subdirs[i]), 0);
 
         // Clear message buffer
-        memset(dir_list[i].name, 0, sizeof(dir_list[i].name));
+        memset(subdirs[i], 0, strlen(subdirs[i]));
+        // free the memory of each element in subdirs list
+        free(subdirs[i]);
     }
 
     // Send termination message after sending all messages
     send(conn, "END_OF_MESSAGES", strlen("END_OF_MESSAGES"), 0);
 
-    // Clear message buffer
-    memset(message, 0, sizeof(message));
-
-    free(dir_list);
+    free(subdirs);
     return EXIT_SUCCESS;
 }
 
@@ -348,22 +341,22 @@ int handle_w24fn_filename(int conn, char *message) {
 
         // Send the all file information to the client
         send(conn, name_message, strlen(name_message), 0);
-        sleep_ms(1000); // sleep for 1000 milliseconds (1 second)
+        sleep_ms(100); // sleep for 1000 milliseconds (1 second)
 
         send(conn, size_message, strlen(size_message), 0);
-        sleep_ms(1000); // sleep for 1000 milliseconds (1 second)
+        sleep_ms(100); // sleep for 1000 milliseconds (1 second)
 
         send(conn, date_message, strlen(date_message), 0);
-        sleep_ms(1000); // sleep for 1000 milliseconds (1 second)
+        sleep_ms(100); // sleep for 1000 milliseconds (1 second)
 
         send(conn, permission_message, strlen(permission_message), 0);
-        sleep_ms(1000); // sleep for 1000 milliseconds (1 second)
+        sleep_ms(100); // sleep for 1000 milliseconds (1 second)
     }
     // checkFirst() function returns 0 when the tree is exhausted, which means the traversal was performed but the file was not found
     // In this case, nftw() also returns 0 to searchResult
     else {
         send(conn, "NON_FILE", strlen("NON_FILE"), 0);
-        sleep_ms(500); // sleep for 1000 milliseconds (1 second)
+        sleep_ms(100); // sleep for 1000 milliseconds (1 second)
         printf("File not found!\n");
     }
 

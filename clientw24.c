@@ -7,6 +7,7 @@
 #include <string.h> // For strlen
 #include <unistd.h>
 #include <ifaddrs.h>
+#include <ctype.h>
 
 
 #define BUFFER_SIZE 32768
@@ -17,6 +18,15 @@
 // For counting the total number of space
 int special_space_count = 0;
 #define MAX_COMMAND_LENGTH 100
+
+// Function to trim trailing whitespace characters from a string
+void trim_trailing_whitespace(char *str) {
+    int len = strlen(str);
+    while (len > 0 && isspace((unsigned char)str[len - 1])) {
+        str[len - 1] = '\0';
+        len--;
+    }
+}
 
 // Splits a command with space and returns the sub command list
 char **split_by_space_operator(const char *command, const char *special_character) {
@@ -50,13 +60,14 @@ void handle_dirlist_alpha(int fd) {
     int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
     while (!end_of_messages_received) {
         // Receive message from server
-        memset(message, 0, sizeof(message)); // Clear message buffer
+        memset(message, 0, 101); // Clear message buffer
         int bytes_received = recv(fd, message, sizeof(message), 0);
         if (bytes_received > 0) {
             if (strstr(message, "END_OF_MESSAGES") != NULL) {
                 end_of_messages_received = 1; // Set flag to true
                 continue;
             }
+            printf("%s\n", message);
         } else if (bytes_received == 0) {
             break; // Terminate loop when connection closed
         } else {
@@ -72,13 +83,14 @@ void handle_dirlist_time(int fd) {
     int end_of_messages_received = 0; // Flag to indicate whether "END_OF_MESSAGES" has been received
     while (!end_of_messages_received) {
         // Receive message from server
-        memset(message, 0, sizeof(message)); // Clear message buffer
+        memset(message, 0, 101); // Clear message buffer
         int bytes_received = recv(fd, message, sizeof(message), 0);
         if (bytes_received > 0) {
             if (strstr(message, "END_OF_MESSAGES") != NULL) {
                 end_of_messages_received = 1; // Set flag to true
                 continue;
             }
+            printf("%s\n", message);
         } else if (bytes_received == 0) {
             break; // Terminate loop when connection closed
         } else {
@@ -238,10 +250,9 @@ void handle_w24fda_after(int fd) {
             }
             total_bytes_received += bytes_received;
             fwrite(buffer, 1, bytes_received, file);
-            printf("File received successfully.\n");
-
             fclose(file);
         }
+        printf("File received successfully.\n");
     }
 }
 
@@ -291,18 +302,49 @@ bool is_leap_year(int year) {
     return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
 }
 
+bool isNumber(char *str) {
+    char number[255];
+    strcpy(number, str);
+
+    char *number_ptr = number;
+    while (*number_ptr) {
+        if (!isdigit(*number_ptr) && *number_ptr != '\n') {
+            return false;
+        }
+        number_ptr++;
+    }
+
+    return true;
+}
+
 bool validate_date(char **specific_command) {
     const char *date_str = specific_command[1];
 
+    char date[255];
+    strcpy(date, date_str);
+
+    char *date_ptr = date;
+    while (*date_ptr != '\n') {
+        if (!isdigit(*date_ptr) && *date_ptr != '-') {
+            return false;
+        }
+        date_ptr++;
+    }
+
     int year, month, day;
     if (sscanf(date_str, "%d-%d-%d", &year, &month, &day) != 3)
+    {
         return false;
+    }
 
-    if (year < 999 || year > 9999)
+    if (year < 999 || year > 9999){
         return false;
+    }
 
     if (month < 1 || month > 12)
+    {
         return false;
+    }
 
     int days_in_month;
     switch (month) {
@@ -317,7 +359,9 @@ bool validate_date(char **specific_command) {
     }
 
     if (day < 1 || day > days_in_month)
+    {
         return false;
+    }
 
 
     return true;
@@ -336,7 +380,7 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9055);
+    serv.sin_port = htons(9059);
     if (inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
@@ -376,15 +420,26 @@ int main() {
         // Send message to server
         printf("clientw24$ ");
         fgets(message, sizeof(message), stdin);
+        trim_trailing_whitespace(message);
         if (strstr(message, "dirlist -a") != NULL) {
-            send(fd, message, strlen(message), 0);
-            handle_dirlist_alpha(fd);
+            if (strlen(message) == 10)
+            {
+                send(fd, message, strlen(message), 0);
+                handle_dirlist_alpha(fd);
+            } else {
+                printf("Invalid command.\n");
+            }
         } else if (strstr(message, "dirlist -t") != NULL) {
-            send(fd, message, strlen(message), 0);
-            handle_dirlist_time(fd);
+            if (strlen(message) == 10)
+            {
+                send(fd, message, strlen(message), 0);
+                handle_dirlist_time(fd);
+            } else {
+                printf("Invalid command.\n");
+            }
         } else if (strstr(message, "w24fn") != NULL) {
             char **specific_command = split_by_space_operator(message, " ");
-            if (special_space_count == 2) {
+            if (special_space_count == 2 && strlen(specific_command[0]) == 5) {
                 send(fd, message, strlen(message), 0);
                 handle_w24fn_filename(fd);
                 free(specific_command);
@@ -396,7 +451,7 @@ int main() {
             int min_search_size;
             int max_search_size;
             char **specific_command = split_by_space_operator(message, " ");
-            if (special_space_count == 3) {
+            if (special_space_count == 3 && strlen(specific_command[0]) == 5 && isNumber(specific_command[1]) && isNumber(specific_command[2])) {
                 min_search_size = atoi(specific_command[1]);
                 max_search_size = atoi(specific_command[2]);
                 if (min_search_size >= 0 && max_search_size >= 0) {
@@ -416,7 +471,7 @@ int main() {
             }
         } else if (strstr(message, "w24ft") != NULL) {
             char **specific_command = split_by_space_operator(message, " ");
-            if (special_space_count >= 2 && special_space_count <= 4) {
+            if (special_space_count >= 2 && special_space_count <= 4 && strlen(specific_command[0]) == 5) {
                 send(fd, message, strlen(message), 0);
                 handle_w24ft_ext(fd);
                 free(specific_command);
@@ -426,7 +481,7 @@ int main() {
             }
         } else if (strstr(message, "w24fda") != NULL) {
             char **specific_command = split_by_space_operator(message, " ");
-            if (special_space_count == 2 && validate_date(specific_command)) {
+            if (special_space_count == 2 && validate_date(specific_command) && strlen(specific_command[0]) == 6) {
                 send(fd, message, strlen(message), 0);
                 handle_w24fda_after(fd);
             } else {
@@ -435,7 +490,7 @@ int main() {
             }
         } else if (strstr(message, "w24fdb") != NULL) {
             char **specific_command = split_by_space_operator(message, " ");
-            if (special_space_count == 2 && validate_date(specific_command)) {
+            if (special_space_count == 2 && validate_date(specific_command) && strlen(specific_command[0]) == 6) {
                 send(fd, message, strlen(message), 0);
                 handle_w24fdb_before(fd);
             } else {
