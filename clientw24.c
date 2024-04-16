@@ -322,25 +322,33 @@ bool validate_date(char **specific_command) {
     strcpy(date, date_str);
 
     char *date_ptr = date;
-    while (*date_ptr != '\n') {
-        if (!isdigit(*date_ptr) && *date_ptr != '-') {
-            return false;
-        }
-        date_ptr++;
-    }
+
+    // while (*date_ptr != '\n') {
+
+    //     if (!isdigit(*date_ptr) && *date_ptr != '-') {
+    //                     printf("false 1 %s\n", date_ptr );
+
+    //         printf("false 1\n");
+    //         return false;
+    //     }
+    //     date_ptr++;
+    // }
 
     int year, month, day;
     if (sscanf(date_str, "%d-%d-%d", &year, &month, &day) != 3)
     {
+        printf("false 2\n");
         return false;
     }
 
     if (year < 999 || year > 9999){
+        printf("false 3\n");
         return false;
     }
 
     if (month < 1 || month > 12)
     {
+        printf("false 4\n");
         return false;
     }
 
@@ -358,6 +366,7 @@ bool validate_date(char **specific_command) {
 
     if (day < 1 || day > days_in_month)
     {
+        printf("false 5\n");
         return false;
     }
 

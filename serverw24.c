@@ -21,7 +21,7 @@
 #define PORT_MIRROR2 9052
 
 // Home directory
-char *home_dir = "/home/song59/Desktop/asp";
+char *home_dir = "/home/song59/Desktop";
 
 
 int total_client = 0;
