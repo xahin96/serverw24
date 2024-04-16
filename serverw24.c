@@ -16,12 +16,12 @@
 
 
 #define BUFFER_SIZE 32768
-#define PORT_SERVER 9050
+#define PORT_SERVER 9059
 #define PORT_MIRROR1 9051
 #define PORT_MIRROR2 9052
 
 // Home directory
-char *home_dir = "/home/song59/Desktop/asp";
+char *home_dir = "/home/song59";
 
 
 int total_client = 0;
@@ -124,7 +124,7 @@ char** getSubdirectories_alpha(int *count) {
     // This command lists all the directories in the user's home directory
     // strips their full path with only directory name left
     // sorts them in a case-insensitive manner
-    fp = popen("find ~/Desktop/asp -type d -printf '%P\n' | xargs -n 1 basename | sort -f", "r");
+    fp = popen("ls -1d $HOME/*/ | xargs -n 1 basename | sort -f", "r");
     if (fp == NULL) {
         fprintf(stderr, "Failed to run command\n");
         return NULL;
@@ -755,7 +755,7 @@ void handle_w24fda_after(int conn, char *message) {
                 sendFile(conn, tar_filepath);
             }
 
-                // print and send a failure message if the TAR was not created
+            // print and send a failure message if the TAR was not created
             else {
                 send(conn, "No file found", strlen("No file found"), 0);
                 sleep_ms(200); // sleep for 200 milliseconds
@@ -763,7 +763,7 @@ void handle_w24fda_after(int conn, char *message) {
             }
         }
 
-            // The value of errorFLAGfda will remain as -1 if there is no such file in the source directory
+        // The value of errorFLAGfda will remain as -1 if there is no such file in the source directory
         else if ( errorFLAGfda == -1 ) {
             send(conn, "No file found", strlen("No file found"), 0);
             sleep_ms(200); // sleep for 200 milliseconds
@@ -916,10 +916,14 @@ void crequest(int conn, int server_port) {
 
             if (strstr(message, "dirlist -a") != NULL) {
                 handle_dirlist_alpha(conn);
+                sleep(1);
+                memset(message, 0, 101); // Clear message buffer
             }
 
             if (strstr(message, "dirlist -t") != NULL) {
                 handle_dirlist_time(conn);
+                sleep(1);
+                memset(message, 0, 101); // Clear message buffer
             }
 
             if (strstr(message, "w24fn") != NULL) {
@@ -930,18 +934,26 @@ void crequest(int conn, int server_port) {
 
             if (strstr(message, "w24fz") != NULL) {
                 handle_w24fz_size(conn, message);
+                sleep(1);
+                memset(message, 0, 101); // Clear message buffer
             }
 
             if (strstr(message, "w24ft") != NULL) {
                 handle_w24ft_ext(conn, message);
+                sleep(1);
+                memset(message, 0, 101); // Clear message buffer
             }
 
             if (strstr(message, "w24fda") != NULL) {
                 handle_w24fda_after(conn, message);
+                sleep(1);
+                memset(message, 0, 101); // Clear message buffer
             }
 
             if (strstr(message, "w24fdb") != NULL) {
                 handle_w24fdb_before(conn, message);
+                sleep(1);
+                memset(message, 0, 101); // Clear message buffer
             }
 
             // Check for exit condition
