@@ -214,7 +214,8 @@ void handle_w24ft_ext(int fd) {
 }
 
 void handle_w24fda_after(int fd) {
-    // Receive file size string
+    // Receive file si
+    ze string
     char file_size_str[13]; // Assuming a maximum of 20 digits for the file size
     memset(file_size_str, 0, 14); // Clear message buffer
     recv(fd, file_size_str, 13, 0);
@@ -323,32 +324,18 @@ bool validate_date(char **specific_command) {
 
     char *date_ptr = date;
 
-    // while (*date_ptr != '\n') {
-
-    //     if (!isdigit(*date_ptr) && *date_ptr != '-') {
-    //                     printf("false 1 %s\n", date_ptr );
-
-    //         printf("false 1\n");
-    //         return false;
-    //     }
-    //     date_ptr++;
-    // }
-
     int year, month, day;
     if (sscanf(date_str, "%d-%d-%d", &year, &month, &day) != 3)
     {
-        printf("false 2\n");
         return false;
     }
 
     if (year < 999 || year > 9999){
-        printf("false 3\n");
         return false;
     }
 
     if (month < 1 || month > 12)
     {
-        printf("false 4\n");
         return false;
     }
 
@@ -366,7 +353,6 @@ bool validate_date(char **specific_command) {
 
     if (day < 1 || day > days_in_month)
     {
-        printf("false 5\n");
         return false;
     }
 
@@ -387,7 +373,7 @@ int main() {
 
     // Initialize server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(9059);
+    serv.sin_port = htons(9050);
     if (inet_pton(AF_INET, "127.0.0.1", &serv.sin_addr) <= 0) {
         perror("Invalid address/ Address not supported");
         exit(EXIT_FAILURE);
