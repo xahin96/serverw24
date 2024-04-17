@@ -16,12 +16,13 @@
 
 
 #define BUFFER_SIZE 32768
-#define PORT_SERVER 9059
+#define PORT_SERVER 9050
 #define PORT_MIRROR1 9051
 #define PORT_MIRROR2 9052
 
 // Home directory
-char *home_dir = "/home/song59";
+char *home_dir = "/home/rahman8j/Desktop";
+// char *home_dir = "/home/rahman8j";
 
 
 int total_client = 0;
@@ -55,6 +56,7 @@ char *end_date;                    // store the end date input from client
 int errorFLAGfdb = -1;             // this flag is for printing appropriate error messages when searching for files as request
 char allFileNamesfdb[100000];      // store all the file paths and names for tar command
 
+char today[15] = "2024-04-16";
 
 // Copy str and return a string referred by dup
 char *my_strdup(const char *str) {
@@ -479,10 +481,11 @@ void handle_w24fz_size(int conn, char *message) {
             // Construct the shell command to compress the files into a TAR archive using "tar -czf"
             char command[100000];   // a string to store the command
             int error = 0;
-            sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesfz);
+            sprintf (command, "tar --ignore-failed-read -czf %s%s", tar_filepath, allFileNamesfz);
 
             // Execute the command using system()
             error = system(command);
+            sleep(5);
 
             // If the TAR archive was created successfully, print and send successful message
             if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
@@ -614,10 +617,11 @@ void handle_w24ft_ext(int conn, char *message) {
             // Construct the shell command to compress the files into a TAR archive using "tar -czf"
             char command[100000];   // a string to store the command
             int error = 0;
-            sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesft);
+            sprintf (command, "tar --ignore-failed-read -czf %s%s", tar_filepath, allFileNamesft);
 
             // Execute the command using system()
             error = system(command);
+            sleep(5);
 
             // If the TAR archive was created successfully, print successful message
             if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
@@ -683,7 +687,7 @@ int checkDateAfter ( const char *filepath,
     strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&sb->st_ctime));
 
     // Check if the creation date of the file is larger than or equal to the start date input from client
-    if (typeflag == FTW_F && strcmp(ctime, start_date) >= 0 ) {
+    if (typeflag == FTW_F && strcmp(ctime, start_date) > 0 && strcmp(ctime, today) < 0) {
 
         // Check if the file is existing in allFileNamesfda
         // If not, add its path and name into the allFileNamefda
@@ -733,12 +737,12 @@ void handle_w24fda_after(int conn, char *message) {
             // Construct the shell command to compress the files into a TAR archive using "tar -czf"
             char command[100000];   // a string to store the command
             int error = 0;
-            sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesfda);
+            sprintf (command, "tar --ignore-failed-read -czf %s%s", tar_filepath, allFileNamesfda);
 
             // Execute the command using system()
             error = system(command);
 
-            sleep(5);
+            sleep(10);
 
             // If the TAR archive was created successfully, send the file
             if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
@@ -747,7 +751,7 @@ void handle_w24fda_after(int conn, char *message) {
                 sendFile(conn, tar_filepath);
             }
 
-            // print and send a failure message if the TAR was not created
+                // print and send a failure message if the TAR was not created
             else {
                 send(conn, "No file found", strlen("No file found"), 0);
                 sleep_in_ms(200); // sleep for 200 milliseconds
@@ -755,7 +759,7 @@ void handle_w24fda_after(int conn, char *message) {
             }
         }
 
-        // The value of errorFLAGfda will remain as -1 if there is no such file in the source directory
+            // The value of errorFLAGfda will remain as -1 if there is no such file in the source directory
         else if ( errorFLAGfda == -1 ) {
             send(conn, "No file found", strlen("No file found"), 0);
             sleep_in_ms(200); // sleep for 200 milliseconds
@@ -804,7 +808,7 @@ int checkDateBefore ( const char *filepath,
     strftime(ctime, sizeof(ctime), "%Y-%m-%d", localtime(&sb->st_ctime));
 
     // Check if the creation date of a file is as request
-    if (typeflag == FTW_F && strcmp(ctime, end_date) <= 0 ) {
+    if (typeflag == FTW_F && strcmp(ctime, end_date) < 0) {
 
         // Check if the file is existing in allFileNamesfdb
         // If not, add its path and name into the allFileNamefdb
@@ -853,10 +857,11 @@ void handle_w24fdb_before ( int conn, char *message ) {
             // Construct the shell command to compress the files into a TAR archive using "tar -czf"
             char command[100000];   // a string to store the command
             int error = 0;
-            sprintf (command, "tar -czf %s%s", tar_filepath, allFileNamesfdb);
+            sprintf (command, "tar --ignore-failed-read -czf %s%s", tar_filepath, allFileNamesfdb);
 
             // Execute the command using system()
             error = system(command);
+            sleep(10);
 
             // If the TAR archive was created successfully, print successful message
             if ( WIFEXITED(error) && WEXITSTATUS(error) == 0 ) {
